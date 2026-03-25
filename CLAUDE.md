@@ -1,6 +1,6 @@
 # Blind Listen — Blind Mix Comparison Tool
 
-## Status: Active — ADR complete, MVP built, pending deploy to Vercel
+## Status: Active — MVP deployed to Vercel
 
 ## What This Is
 Browser-based blind listening test for comparing audio mixes. Load 2–5 audio files, switch between them with hidden identities, loop sections, jot notes, then reveal. Free tier is 100% client-side (no server, no cost). Paid tier and Session Mode add backend when demand proves out.
@@ -12,7 +12,8 @@ Browser-based blind listening test for comparing audio mixes. Load 2–5 audio f
 - No build step in Phase 1. No framework. No dependencies.
 
 ## Deployment
-- Vercel project: `blindlisten` (not yet created)
+- Vercel project: `blind-listen` (auto-deploys from GitHub on push to main)
+- Direct URL: `https://blind-listen.vercel.app`
 - Proxied via rewrite in `foil-industries-v2/vercel.json` → `foil.engineering/blindlisten`
 - Same pattern as TheNumber
 - CRITICAL: Always verify `.vercel/project.json` has correct projectId before deploying
@@ -46,9 +47,9 @@ Browser-based blind listening test for comparing audio mixes. Load 2–5 audio f
 - Phase 3 gate: Do not start until paid tier has subscribers requesting collaboration
 
 ## Known MVP Issues (from skeptic review)
-- [ ] Silent `try/catch` in `stop()` — should log errors
-- [ ] `duration = Math.max(...)` — seek bar shows longest file's duration even when shorter file is active
+- [x] Silent `try/catch` in `stop()` — now logs console.warn
+- [x] `duration = Math.max(...)` — fixed: seek bar uses active buffer's duration via `getActiveDuration()`
 - [ ] No loading indicator during decode — large WAVs take seconds
-- [ ] File limit is 4, should be 5
+- [x] File limit is 4, should be 5 — now supports 2-5 files
 - [ ] No per-file upload confirmation
 - [ ] AudioContext created before user interaction (autoplay policy risk)
