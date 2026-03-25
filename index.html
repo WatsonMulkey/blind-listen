@@ -1209,6 +1209,7 @@ function pause() {
 
 function stop() {
   if (sourceNode) {
+    sourceNode.onended = null; // Prevent stale async callback after stop→play cycle
     try { sourceNode.stop(); } catch (err) { console.warn('Audio stop:', err.message); }
     sourceNode.disconnect();
     sourceNode = null;
