@@ -49,7 +49,7 @@ Browser-based blind listening test for comparing audio mixes. Load 2–5 audio f
 ## Known MVP Issues (from skeptic review)
 - [x] Silent `try/catch` in `stop()` — now logs console.warn
 - [x] `duration = Math.max(...)` — fixed: seek bar uses active buffer's duration via `getActiveDuration()`
-- [ ] No loading indicator during decode — large WAVs take seconds
+- [x] No loading indicator during decode — per-file spinners + status text (FOI-34)
 - [x] File limit is 4, should be 5 — now supports 2-5 files
-- [ ] No per-file upload confirmation
-- [ ] AudioContext created before user interaction (autoplay policy risk)
+- [x] No per-file upload confirmation — file list shows name, size, status per file (FOI-34)
+- [x] AudioContext created before user interaction — resume() called on play click (FOI-34)
