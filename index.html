@@ -31,6 +31,11 @@
     --radius-xl:  20px;
     --transition-fast: 0.12s ease;
     --transition-base: 0.2s ease;
+    --waveform-fill:  rgba(99, 102, 241, 0.35);
+    --waveform-line:  rgba(99, 102, 241, 0.7);
+    --loop-start:     rgba(34, 197, 94, 0.8);
+    --loop-end:       rgba(245, 158, 11, 0.8);
+    --playhead:       #f0f0f5;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -127,59 +132,287 @@
 
   .mix-btn.revealed { font-size: 0.75rem; line-height: 1.3; padding: 0.5rem; text-align: center; word-break: break-word; }
 
+  /* Session timer */
+  .session-timer { text-align: right; }
+  .timer-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    margin-bottom: 0.1rem;
+  }
+  .timer-value {
+    font-size: 1.2rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-secondary);
+    letter-spacing: 0.02em;
+  }
+  .timer-value.warning { color: var(--warning); }
+  .timer-value.critical { color: var(--error); }
+  .timer-badge {
+    font-size: 0.65rem;
+    background: var(--warning-dim);
+    color: var(--warning);
+    border-radius: 4px;
+    padding: 0.1rem 0.4rem;
+    margin-top: 0.2rem;
+    display: none;
+  }
+  .timer-badge.visible { display: inline-block; }
+
+  /* Player header row */
+  .player-header {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+
+  /* Waveform section */
+  .waveform-section { width: 100%; margin-bottom: 0; }
+  .waveform-toggle-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+  .waveform-toggle-label {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .toggle-btn {
+    padding: 0.3rem 0.75rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-family: inherit;
+  }
+  .toggle-btn:hover { border-color: var(--accent-dim); color: var(--text-primary); }
+  .toggle-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(99, 102, 241, 0.1);
+  }
+
+  .waveform-container {
+    width: 100%;
+    height: 72px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    position: relative;
+    overflow: hidden;
+  }
+  .waveform-container.hidden { display: none; }
+  .waveform-container canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .waveform-playhead {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--playhead);
+    left: 0%;
+    pointer-events: none;
+  }
+  .loop-region {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: rgba(99, 102, 241, 0.12);
+    border-left: 2px solid var(--loop-start);
+    border-right: 2px solid var(--loop-end);
+    pointer-events: none;
+    display: none;
+  }
+  .loop-marker-handle {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 16px;
+    height: 28px;
+    border-radius: 4px;
+    cursor: col-resize;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+  }
+  .loop-marker-handle.start { background: var(--loop-start); }
+  .loop-marker-handle.end { background: var(--loop-end); }
+
   /* Transport */
   .transport {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.85rem;
     width: 100%;
   }
 
   .play-btn {
-    width: 48px;
-    height: 48px;
+    width: 52px;
+    height: 52px;
     border-radius: 50%;
-    border: 2px solid #3a3a4a;
-    background: #111118;
-    color: #e0e0e0;
-    font-size: 1.2rem;
+    border: 2px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    font-size: 1.1rem;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.15s;
+    transition: all var(--transition-fast);
     flex-shrink: 0;
   }
 
-  .play-btn:hover { border-color: var(--accent); background: #16162a; }
+  .play-btn:hover { border-color: var(--accent); background: rgba(99, 102, 241, 0.12); }
+
+  .seek-bar-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
 
   .seek-bar {
-    flex: 1;
+    width: 100%;
     -webkit-appearance: none;
     appearance: none;
-    height: 6px;
+    height: 5px;
     border-radius: 3px;
-    background: #1e1e2e;
+    background: linear-gradient(to right, var(--accent) 0%, var(--accent) 0%, var(--border) 0%, var(--border) 100%);
     outline: none;
     cursor: pointer;
   }
 
   .seek-bar::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
     border-radius: 50%;
-    background: var(--accent);
+    background: var(--text-primary);
+    border: 2px solid var(--accent);
     cursor: pointer;
+    transition: transform 0.1s;
   }
 
-  .time-display {
-    font-size: 0.75rem;
-    color: #666;
+  .seek-bar::-webkit-slider-thumb:active { transform: scale(1.25); }
+
+  .seek-time-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.68rem;
+    color: var(--text-muted);
     font-variant-numeric: tabular-nums;
+    padding: 0 2px;
+  }
+
+  /* Loop controls */
+  .loop-controls {
+    width: 100%;
+    padding: 0.85rem;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .loop-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .loop-title {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+  }
+  .loop-toggle-btn {
+    padding: 0.3rem 0.75rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-family: inherit;
+  }
+  .loop-toggle-btn:hover { border-color: var(--accent-dim); color: var(--text-primary); }
+  .loop-toggle-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(99, 102, 241, 0.1);
+  }
+  .loop-body {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+  .loop-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    flex: 1;
     min-width: 90px;
-    text-align: right;
+  }
+  .loop-input-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+  }
+  .loop-time-input {
+    width: 100%;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0.45rem 0.6rem;
+    color: var(--text-primary);
+    font-size: 0.82rem;
+    font-family: inherit;
+    font-variant-numeric: tabular-nums;
+    outline: none;
+    transition: border-color var(--transition-fast);
+  }
+  .loop-time-input:focus { border-color: var(--accent); }
+  .loop-separator {
+    font-size: 1rem;
+    color: var(--text-muted);
+    align-self: flex-end;
+    padding-bottom: 0.4rem;
     flex-shrink: 0;
+  }
+  .reroll-btn {
+    padding: 0.45rem 0.85rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-family: inherit;
+    align-self: flex-end;
+    white-space: nowrap;
+  }
+  .reroll-btn:hover { border-color: var(--accent-dim); color: var(--text-primary); }
+  .loop-duration-hint {
+    font-size: 0.68rem;
+    color: var(--text-muted);
   }
 
   /* Volume */
@@ -297,7 +530,7 @@
     margin-top: 1rem;
   }
 
-  .hints kbd {
+  kbd {
     background: #1a1a2a;
     border: 1px solid #2a2a3a;
     border-radius: 3px;
@@ -371,13 +604,29 @@
 
   .file-status-text {
     font-size: 0.72rem;
-    flex-shrink: 0;
+    flex-shrink: 1;
+    min-width: 0;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .file-status-text.decoding  { color: var(--text-muted); }
   .file-status-text.ready     { color: var(--success); }
   .file-status-text.error-msg { color: var(--error); }
+
+  .file-remove-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0 0.2rem;
+    flex-shrink: 0;
+    line-height: 1;
+    transition: color var(--transition-fast);
+  }
+  .file-remove-btn:hover { color: var(--error); }
 
   .file-summary {
     font-size: 0.8rem;
@@ -430,12 +679,63 @@
 <div class="file-summary" id="fileSummary"></div>
 
 <div class="player" id="player">
+  <div class="player-header">
+    <div>
+      <h1 style="font-size:1.4rem;font-weight:700;letter-spacing:-0.03em">Blind Listen</h1>
+      <p class="subtitle" style="margin-bottom:0">Unbiased mix comparison</p>
+    </div>
+    <div class="session-timer" id="sessionTimer" aria-label="Session time remaining" aria-live="polite">
+      <div class="timer-label">Session</div>
+      <div class="timer-value" id="timerValue">10:00</div>
+      <div class="timer-badge" id="timerBadge"></div>
+    </div>
+  </div>
+
   <div class="mix-buttons" id="mixButtons"></div>
+
+  <div class="waveform-section" id="waveformSection">
+    <div class="waveform-toggle-row">
+      <span class="waveform-toggle-label">Waveform</span>
+      <button class="toggle-btn" id="waveformToggle" aria-pressed="false">Show</button>
+    </div>
+    <div class="waveform-container hidden" id="waveformContainer" aria-hidden="true">
+      <canvas id="waveformCanvas"></canvas>
+      <div class="waveform-playhead" id="waveformPlayhead"></div>
+      <div class="loop-region" id="loopRegion"></div>
+      <div class="loop-marker-handle start" id="loopStartMarker"></div>
+      <div class="loop-marker-handle end" id="loopEndMarker"></div>
+    </div>
+  </div>
 
   <div class="transport">
     <button class="play-btn" id="playBtn" aria-label="Play">&#9654;</button>
-    <input type="range" class="seek-bar" id="seekBar" min="0" max="1000" value="0" aria-label="Seek through audio">
-    <span class="time-display" id="timeDisplay">0:00 / 0:00</span>
+    <div class="seek-bar-wrapper">
+      <input type="range" class="seek-bar" id="seekBar" min="0" max="1000" value="0" aria-label="Playback position">
+      <div class="seek-time-row" aria-hidden="true">
+        <span id="timeElapsed">0:00</span>
+        <span id="timeDuration">0:00</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="loop-controls" id="loopControls">
+    <div class="loop-header">
+      <span class="loop-title">Loop</span>
+      <button class="loop-toggle-btn" id="loopToggle" aria-pressed="false">Enable &mdash; <kbd>L</kbd></button>
+    </div>
+    <div class="loop-body" id="loopBody" style="display:none">
+      <div class="loop-input-group">
+        <label class="loop-input-label" for="loopStartInput">Start</label>
+        <input class="loop-time-input" id="loopStartInput" type="text" value="0:00">
+      </div>
+      <span class="loop-separator">&rarr;</span>
+      <div class="loop-input-group">
+        <label class="loop-input-label" for="loopEndInput">End</label>
+        <input class="loop-time-input" id="loopEndInput" type="text" value="0:00">
+      </div>
+      <button class="reroll-btn" id="rerollBtn" aria-label="Randomize loop section">&#x1F3B2; Re-roll</button>
+    </div>
+    <div class="loop-duration-hint" id="loopHint" style="display:none"></div>
   </div>
 
   <div class="volume-row">
@@ -456,6 +756,7 @@
   <div class="hints">
     <kbd>1</kbd>–<kbd>5</kbd> switch mixes &nbsp;&middot;&nbsp;
     <kbd>Space</kbd> play/pause &nbsp;&middot;&nbsp;
+    <kbd>L</kbd> loop &nbsp;&middot;&nbsp;
     <kbd>R</kbd> reveal
   </div>
 </div>
@@ -464,19 +765,29 @@
 const LABELS = ['X', 'Y', 'Z', 'W', 'V'];
 let files = [];
 let buffers = [];
-let fileStates = []; // { name, size, status: 'pending'|'decoding'|'ready'|'error', error: null }
-let shuffleMap = []; // shuffleMap[buttonIndex] = originalFileIndex
+let fileStates = [];
+let shuffleMap = [];
 let audioCtx = null;
 let sourceNode = null;
 let gainNode = null;
-let activeIndex = -1; // which button is active
+let activeIndex = -1;
 let isPlaying = false;
-let startedAt = 0; // audioCtx.currentTime when playback started
-let pausedAt = 0;  // how far into the buffer we paused
+let startedAt = 0;
+let pausedAt = 0;
 let duration = 0;
 let revealed = false;
 let animFrame = null;
 
+// Phase 1B state
+let loopEnabled = false;
+let loopStart = 0;
+let loopEnd = 0;
+let waveformVisible = false;
+let sessionSeconds = 600;
+let timerInterval = null;
+let timerStarted = false;
+
+// DOM refs — existing
 const uploadZone = document.getElementById('uploadZone');
 const fileInput = document.getElementById('fileInput');
 const fileListEl = document.getElementById('fileList');
@@ -485,65 +796,82 @@ const player = document.getElementById('player');
 const mixButtons = document.getElementById('mixButtons');
 const playBtn = document.getElementById('playBtn');
 const seekBar = document.getElementById('seekBar');
-const timeDisplay = document.getElementById('timeDisplay');
 const volumeBar = document.getElementById('volumeBar');
 const noteRows = document.getElementById('noteRows');
 const revealBtn = document.getElementById('revealBtn');
 const reshuffleBtn = document.getElementById('reshuffleBtn');
+
+// DOM refs — Phase 1B
+const timeElapsed = document.getElementById('timeElapsed');
+const timeDuration = document.getElementById('timeDuration');
+const waveformToggle = document.getElementById('waveformToggle');
+const waveformContainer = document.getElementById('waveformContainer');
+const waveformCanvas = document.getElementById('waveformCanvas');
+const waveformPlayhead = document.getElementById('waveformPlayhead');
+const loopToggle = document.getElementById('loopToggle');
+const loopBody = document.getElementById('loopBody');
+const loopStartInput = document.getElementById('loopStartInput');
+const loopEndInput = document.getElementById('loopEndInput');
+const rerollBtn = document.getElementById('rerollBtn');
+const loopHint = document.getElementById('loopHint');
+const loopRegion = document.getElementById('loopRegion');
+const loopStartMarker = document.getElementById('loopStartMarker');
+const loopEndMarker = document.getElementById('loopEndMarker');
+const timerValue = document.getElementById('timerValue');
+const timerBadge = document.getElementById('timerBadge');
+const mainH1 = document.querySelector('body > h1');
+const mainSubtitle = document.querySelector('body > .subtitle');
 
 // Disable transport controls on load
 playBtn.disabled = true;
 seekBar.disabled = true;
 volumeBar.disabled = true;
 
-// Format file size as KB or MB
 function fmtSize(bytes) {
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
-// Render file list from fileStates[]
 function renderFileList() {
   fileListEl.innerHTML = '';
   for (const fs of fileStates) {
     const li = document.createElement('li');
-    let iconClass = '', iconHTML = '', statusClass = '', statusText = '', itemClass = 'file-item';
-
+    let iconHTML = '', statusClass = '', statusText = '', itemClass = 'file-item';
     switch (fs.status) {
       case 'pending':
-        iconHTML = '<span style="color:var(--text-muted)">·</span>';
-        statusClass = 'decoding';
-        statusText = 'Pending';
-        break;
+        iconHTML = '<span style="color:var(--text-muted)">\u00b7</span>';
+        statusClass = 'decoding'; statusText = 'Pending'; break;
       case 'decoding':
         iconHTML = '<span class="spinner"></span>';
-        statusClass = 'decoding';
-        statusText = 'Decoding\u2026';
-        break;
+        statusClass = 'decoding'; statusText = 'Decoding\u2026'; break;
       case 'ready':
         iconHTML = '<span style="color:var(--success)">\u2713</span>';
-        statusClass = 'ready';
-        statusText = 'Ready';
-        itemClass += ' success';
-        break;
+        statusClass = 'ready'; statusText = 'Ready'; itemClass += ' success'; break;
       case 'error':
         iconHTML = '<span style="color:var(--error)">\u2717</span>';
-        statusClass = 'error-msg';
-        statusText = fs.error || 'Error';
-        itemClass += ' error';
-        break;
+        statusClass = 'error-msg'; statusText = fs.error || 'Error'; itemClass += ' error'; break;
     }
-
+    const idx = fileStates.indexOf(fs);
     li.className = itemClass;
     li.innerHTML =
       `<span class="file-status-icon" aria-hidden="true">${iconHTML}</span>` +
-      `<span class="file-name">Track ${fileStates.indexOf(fs) + 1}</span>` +
+      `<span class="file-name">Track ${idx + 1}</span>` +
       `<span class="file-size">${fmtSize(fs.size)}</span>` +
-      `<span class="file-status-text ${statusClass}">${statusText}</span>`;
+      `<span class="file-status-text ${statusClass}" title="${statusText}">${statusText}</span>`;
+
+    // Add remove button for error/ready files (not during decode)
+    if (fs.status === 'error' || fs.status === 'ready') {
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'file-remove-btn';
+      removeBtn.innerHTML = '&times;';
+      removeBtn.setAttribute('aria-label', `Remove Track ${idx + 1}`);
+      removeBtn.addEventListener('click', () => removeFile(idx));
+      li.appendChild(removeBtn);
+    }
+
     fileListEl.appendChild(li);
   }
 
-  // Update summary line
   const readyCount = fileStates.filter(f => f.status === 'ready').length;
   const total = fileStates.length;
   const allDone = fileStates.every(f => f.status === 'ready' || f.status === 'error');
@@ -566,7 +894,6 @@ function renderFileList() {
   }
 }
 
-// Enable transport controls once ≥2 files are ready
 function updateTransportState() {
   const readyCount = fileStates.filter(f => f.status === 'ready').length;
   const enable = readyCount >= 2;
@@ -575,16 +902,28 @@ function updateTransportState() {
   volumeBar.disabled = !enable;
 }
 
+function removeFile(idx) {
+  // Stop playback if removing would affect active state
+  if (isPlaying) pause();
+
+  files.splice(idx, 1);
+  buffers.splice(idx, 1);
+  fileStates.splice(idx, 1);
+
+  renderFileList();
+  updateTransportState();
+}
+
 // Upload handling
 uploadZone.addEventListener('click', (e) => {
-  if (e.target === fileInput) return; // prevent bubbling loop
+  if (e.target === fileInput) return;
   fileInput.click();
 });
 fileInput.addEventListener('change', e => {
   handleFiles(e.target.files);
-  fileInput.value = ''; // reset so same file can be re-selected
+  fileInput.value = '';
 });
-fileInput.addEventListener('click', e => e.stopPropagation()); // prevent bubble to uploadZone
+fileInput.addEventListener('click', e => e.stopPropagation());
 
 uploadZone.addEventListener('dragover', e => {
   e.preventDefault();
@@ -606,7 +945,6 @@ async function handleFiles(fileList) {
     return;
   }
 
-  // Check total file count
   const totalAfter = files.length + newAudio.length;
   if (totalAfter > 5) {
     fileSummary.textContent = `Too many files (${totalAfter}) \u2014 max 5`;
@@ -614,7 +952,6 @@ async function handleFiles(fileList) {
     return;
   }
 
-  // Add new files to tracking arrays with 'pending' status
   const startIdx = files.length;
   for (const f of newAudio) {
     files.push(f);
@@ -623,7 +960,6 @@ async function handleFiles(fileList) {
   }
   renderFileList();
 
-  // Create AudioContext if needed (required for decodeAudioData)
   if (!audioCtx) {
     audioCtx = new AudioContext();
     gainNode = audioCtx.createGain();
@@ -631,11 +967,9 @@ async function handleFiles(fileList) {
     gainNode.connect(audioCtx.destination);
   }
 
-  // Decode new files sequentially (avoids memory spikes with large WAVs)
   for (let i = startIdx; i < files.length; i++) {
     fileStates[i].status = 'decoding';
     renderFileList();
-
     try {
       const arr = await files[i].arrayBuffer();
       const decoded = await audioCtx.decodeAudioData(arr);
@@ -645,28 +979,29 @@ async function handleFiles(fileList) {
       fileStates[i].status = 'error';
       fileStates[i].error = err.message || 'Decode failed';
     }
-
     renderFileList();
     updateTransportState();
   }
 
-  // After all decoding, check if we have enough ready files
   const readyCount = fileStates.filter(f => f.status === 'ready').length;
   if (readyCount >= 2) {
-    // Rebuild buffers array for only ready files — but we need to keep indices aligned
-    // with files[] for the reveal mapping. Just compute duration from ready buffers.
     duration = Math.max(...buffers.filter(b => b !== null).map(b => b.duration));
-
     shuffle();
     buildUI();
+    // Hide upload UI, show player with its own header + timer
+    mainH1.style.display = 'none';
+    mainSubtitle.style.display = 'none';
+    uploadZone.style.display = 'none';
+    fileListEl.style.display = 'none';
+    fileSummary.style.display = 'none';
     player.classList.add('active');
+    startSessionTimer();
   }
 }
 
 function shuffle() {
   stop();
   revealed = false;
-  // Only include files that decoded successfully
   const readyIndices = fileStates
     .map((fs, i) => fs.status === 'ready' ? i : -1)
     .filter(i => i >= 0);
@@ -714,11 +1049,18 @@ function switchTo(btnIndex) {
   const newDur = getActiveDuration();
   const clamped = Math.min(currentTime, newDur);
 
+  // Redraw waveform for new active mix
+  if (waveformVisible) {
+    const fileIdx = shuffleMap[activeIndex];
+    if (buffers[fileIdx]) drawWaveform(buffers[fileIdx]);
+    if (loopEnabled) updateLoopMarkers();
+  }
+
   if (wasPlaying) {
     play(clamped);
   } else {
     pausedAt = clamped;
-    timeDisplay.textContent = `${fmt(clamped)} / ${fmt(newDur)}`;
+    updateSeekDisplay(clamped, newDur);
   }
 }
 
@@ -731,12 +1073,18 @@ function play(fromTime = pausedAt) {
   const fileIdx = shuffleMap[activeIndex];
   const buffer = buffers[fileIdx];
 
-  // Resume AudioContext on user gesture (autoplay policy safeguard)
   if (audioCtx.state === 'suspended') audioCtx.resume();
 
   sourceNode = audioCtx.createBufferSource();
   sourceNode.buffer = buffer;
   sourceNode.connect(gainNode);
+
+  // Loop support
+  if (loopEnabled) {
+    sourceNode.loop = true;
+    sourceNode.loopStart = loopStart;
+    sourceNode.loopEnd = loopEnd;
+  }
 
   const clampedTime = Math.min(fromTime, buffer.duration);
   sourceNode.start(0, clampedTime);
@@ -746,10 +1094,13 @@ function play(fromTime = pausedAt) {
   playBtn.setAttribute('aria-label', 'Pause');
 
   sourceNode.onended = () => {
-    if (isPlaying && getCurrentTime() >= buffer.duration - 0.05) {
+    // When looping, onended should not fire (BufferSourceNode loops internally).
+    // Guard against edge case where loop is toggled off near end.
+    if (isPlaying && !sourceNode?.loop) {
       isPlaying = false;
       pausedAt = 0;
       playBtn.innerHTML = '&#9654;';
+      playBtn.setAttribute('aria-label', 'Play');
     }
   };
 
@@ -775,7 +1126,16 @@ function stop() {
 
 function getCurrentTime() {
   if (!isPlaying) return pausedAt;
-  return audioCtx.currentTime - startedAt;
+  const raw = audioCtx.currentTime - startedAt;
+  // When looping, audioCtx.currentTime keeps advancing but audio wraps.
+  // Compute effective position within the loop region.
+  if (loopEnabled && loopEnd > loopStart) {
+    const loopLen = loopEnd - loopStart;
+    if (raw >= loopEnd) {
+      return loopStart + ((raw - loopStart) % loopLen);
+    }
+  }
+  return raw;
 }
 
 function getActiveDuration() {
@@ -784,20 +1144,52 @@ function getActiveDuration() {
   return buffers[fileIdx] ? buffers[fileIdx].duration : duration;
 }
 
+function getShortestDuration() {
+  let shortest = Infinity;
+  for (const idx of shuffleMap) {
+    if (buffers[idx] && buffers[idx].duration < shortest) shortest = buffers[idx].duration;
+  }
+  return shortest === Infinity ? duration : shortest;
+}
+
 function tickSeek() {
   if (!isPlaying) return;
   const t = getCurrentTime();
   const dur = getActiveDuration();
   seekBar.value = (t / dur) * 1000;
   seekBar.setAttribute('aria-valuetext', `${fmt(t)} of ${fmt(dur)}`);
-  timeDisplay.textContent = `${fmt(t)} / ${fmt(dur)}`;
+  updateSeekDisplay(t, dur);
+
+  // Update waveform playhead
+  if (waveformVisible) {
+    waveformPlayhead.style.left = (t / dur) * 100 + '%';
+  }
+
   animFrame = requestAnimationFrame(tickSeek);
 }
 
+function updateSeekDisplay(t, dur) {
+  const pct = dur > 0 ? (t / dur) * 100 : 0;
+  seekBar.style.background = `linear-gradient(to right, var(--accent) 0%, var(--accent) ${pct}%, var(--border) ${pct}%, var(--border) 100%)`;
+  timeElapsed.textContent = fmt(t);
+  timeDuration.textContent = fmt(dur);
+}
+
 function fmt(s) {
+  if (s < 0) s = 0;
   const m = Math.floor(s / 60);
   const sec = Math.floor(s % 60);
   return `${m}:${sec.toString().padStart(2, '0')}`;
+}
+
+function parseTime(str) {
+  const parts = str.trim().split(':');
+  if (parts.length === 2) {
+    const mins = parseInt(parts[0], 10) || 0;
+    const secs = parseInt(parts[1], 10) || 0;
+    return mins * 60 + secs;
+  }
+  return parseFloat(str) || 0;
 }
 
 function updateButtons() {
@@ -808,7 +1200,292 @@ function updateButtons() {
   });
 }
 
-// Transport controls
+// ─── Waveform ───────────────────────────────────────────────
+
+function drawWaveform(buffer) {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = waveformContainer.getBoundingClientRect();
+  waveformCanvas.width = rect.width * dpr;
+  waveformCanvas.height = rect.height * dpr;
+  waveformCanvas.style.width = rect.width + 'px';
+  waveformCanvas.style.height = rect.height + 'px';
+
+  const ctx = waveformCanvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, rect.width, rect.height);
+
+  const data = buffer.getChannelData(0);
+  const bars = Math.min(600, Math.floor(rect.width / 2));
+  const step = Math.floor(data.length / bars);
+  const barW = rect.width / bars;
+  const mid = rect.height / 2;
+
+  // Calculate peaks
+  const peaks = new Float32Array(bars);
+  for (let i = 0; i < bars; i++) {
+    let max = 0;
+    for (let j = i * step; j < (i + 1) * step && j < data.length; j++) {
+      const abs = Math.abs(data[j]);
+      if (abs > max) max = abs;
+    }
+    peaks[i] = max;
+  }
+
+  const styles = getComputedStyle(document.documentElement);
+
+  // Draw filled bars
+  ctx.fillStyle = styles.getPropertyValue('--waveform-fill').trim();
+  for (let i = 0; i < bars; i++) {
+    const h = peaks[i] * rect.height * 0.9;
+    ctx.fillRect(i * barW, mid - h / 2, Math.max(barW - 1, 1), h);
+  }
+
+  // Draw top contour
+  ctx.strokeStyle = styles.getPropertyValue('--waveform-line').trim();
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let i = 0; i < bars; i++) {
+    const h = peaks[i] * rect.height * 0.9;
+    const x = i * barW + barW / 2;
+    if (i === 0) ctx.moveTo(x, mid - h / 2);
+    else ctx.lineTo(x, mid - h / 2);
+  }
+  ctx.stroke();
+}
+
+waveformToggle.addEventListener('click', () => {
+  waveformVisible = !waveformVisible;
+  waveformContainer.classList.toggle('hidden', !waveformVisible);
+  waveformContainer.setAttribute('aria-hidden', String(!waveformVisible));
+  waveformToggle.textContent = waveformVisible ? 'Hide' : 'Show';
+  waveformToggle.setAttribute('aria-pressed', String(waveformVisible));
+  waveformToggle.classList.toggle('active', waveformVisible);
+
+  if (waveformVisible && activeIndex >= 0) {
+    const fileIdx = shuffleMap[activeIndex];
+    if (buffers[fileIdx]) drawWaveform(buffers[fileIdx]);
+    // Show loop markers/region if loop is active
+    if (loopEnabled) {
+      loopRegion.style.display = 'block';
+      loopStartMarker.style.display = 'flex';
+      loopEndMarker.style.display = 'flex';
+      updateLoopMarkers();
+    }
+  }
+});
+
+// Debounced canvas resize
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    if (waveformVisible && activeIndex >= 0) {
+      const fileIdx = shuffleMap[activeIndex];
+      if (buffers[fileIdx]) drawWaveform(buffers[fileIdx]);
+    }
+  }, 200);
+});
+
+// ─── Loop controls ──────────────────────────────────────────
+
+function toggleLoop() {
+  loopEnabled = !loopEnabled;
+  loopToggle.classList.toggle('active', loopEnabled);
+  loopToggle.setAttribute('aria-pressed', String(loopEnabled));
+  loopBody.style.display = loopEnabled ? 'flex' : 'none';
+  loopHint.style.display = loopEnabled ? 'block' : 'none';
+
+  // Show/hide waveform markers
+  const markerDisplay = loopEnabled ? 'flex' : 'none';
+  loopRegion.style.display = loopEnabled ? 'block' : 'none';
+  loopStartMarker.style.display = markerDisplay;
+  loopEndMarker.style.display = markerDisplay;
+
+  if (loopEnabled && loopEnd === 0) {
+    // Initialize default loop region
+    const dur = getShortestDuration();
+    loopStart = 0;
+    loopEnd = Math.min(dur, 30);
+    if (loopEnd - loopStart < 5) loopEnd = Math.min(loopStart + 5, dur);
+    updateLoopInputs();
+    updateLoopMarkers();
+    updateLoopHint();
+  }
+
+  // Restart playback with loop settings
+  if (isPlaying) {
+    const t = getCurrentTime();
+    stop();
+    play(loopEnabled ? Math.max(loopStart, Math.min(t, loopEnd)) : t);
+  }
+}
+
+function reroll() {
+  const dur = getShortestDuration();
+  const maxStart = Math.max(0, dur - 5);
+  loopStart = Math.random() * maxStart;
+  const maxLen = Math.min(60, dur - loopStart);
+  const len = 5 + Math.random() * (maxLen - 5);
+  loopEnd = Math.min(loopStart + len, dur);
+
+  updateLoopInputs();
+  updateLoopMarkers();
+  updateLoopHint();
+
+  if (isPlaying) {
+    stop();
+    play(loopStart);
+  }
+}
+
+function updateLoopInputs() {
+  loopStartInput.value = fmt(loopStart);
+  loopEndInput.value = fmt(loopEnd);
+}
+
+function updateLoopMarkers() {
+  // Position markers relative to active duration for visual alignment with playhead
+  const dur = getActiveDuration();
+  if (dur <= 0) return;
+  const startPct = (loopStart / dur) * 100;
+  const endPct = (loopEnd / dur) * 100;
+  loopRegion.style.left = startPct + '%';
+  loopRegion.style.right = (100 - endPct) + '%';
+  loopStartMarker.style.left = startPct + '%';
+  loopEndMarker.style.left = endPct + '%';
+}
+
+function updateLoopHint() {
+  if (!loopEnabled) return;
+  const len = loopEnd - loopStart;
+  loopHint.textContent = `Looping ${fmt(loopStart)} \u2192 ${fmt(loopEnd)} (${len.toFixed(1)}s)`;
+}
+
+loopToggle.addEventListener('click', toggleLoop);
+rerollBtn.addEventListener('click', reroll);
+
+loopStartInput.addEventListener('change', () => {
+  const dur = getShortestDuration();
+  let val = parseTime(loopStartInput.value);
+  val = Math.max(0, Math.min(val, dur - 5));
+  loopStart = val;
+  if (loopEnd - loopStart < 5) loopEnd = Math.min(loopStart + 5, dur);
+  updateLoopInputs();
+  updateLoopMarkers();
+  updateLoopHint();
+  if (isPlaying) { stop(); play(loopStart); }
+});
+
+loopEndInput.addEventListener('change', () => {
+  const dur = getShortestDuration();
+  let val = parseTime(loopEndInput.value);
+  val = Math.max(loopStart + 5, Math.min(val, dur));
+  loopEnd = val;
+  updateLoopInputs();
+  updateLoopMarkers();
+  updateLoopHint();
+  if (isPlaying) { stop(); play(Math.min(getCurrentTime(), loopEnd)); }
+});
+
+// Draggable loop markers on waveform
+function setupMarkerDrag(marker, isStart) {
+  let dragging = false;
+
+  marker.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    dragging = true;
+    document.addEventListener('mousemove', onDrag);
+    document.addEventListener('mouseup', onUp);
+  });
+
+  // Touch support
+  marker.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    dragging = true;
+    document.addEventListener('touchmove', onTouchDrag, { passive: false });
+    document.addEventListener('touchend', onTouchUp);
+  });
+
+  function getTimeFromX(clientX) {
+    const rect = waveformContainer.getBoundingClientRect();
+    const dur = getActiveDuration();
+    let pct = (clientX - rect.left) / rect.width;
+    pct = Math.max(0, Math.min(1, pct));
+    return pct * dur;
+  }
+
+  function applyTime(time) {
+    const dur = getShortestDuration();
+    if (isStart) {
+      loopStart = Math.max(0, Math.min(time, loopEnd - 5, dur - 5));
+    } else {
+      loopEnd = Math.max(loopStart + 5, Math.min(time, dur));
+    }
+    updateLoopInputs();
+    updateLoopMarkers();
+    updateLoopHint();
+  }
+
+  function onDrag(e) { if (dragging) applyTime(getTimeFromX(e.clientX)); }
+  function onTouchDrag(e) { if (dragging) { e.preventDefault(); applyTime(getTimeFromX(e.touches[0].clientX)); } }
+
+  function onUp() {
+    dragging = false;
+    document.removeEventListener('mousemove', onDrag);
+    document.removeEventListener('mouseup', onUp);
+    if (isPlaying) { stop(); play(Math.max(loopStart, Math.min(getCurrentTime(), loopEnd))); }
+  }
+
+  function onTouchUp() {
+    dragging = false;
+    document.removeEventListener('touchmove', onTouchDrag);
+    document.removeEventListener('touchend', onTouchUp);
+    if (isPlaying) { stop(); play(Math.max(loopStart, Math.min(getCurrentTime(), loopEnd))); }
+  }
+}
+
+setupMarkerDrag(loopStartMarker, true);
+setupMarkerDrag(loopEndMarker, false);
+
+// ─── Session timer ──────────────────────────────────────────
+
+function startSessionTimer() {
+  if (timerStarted) return;
+  timerStarted = true;
+  updateTimerDisplay();
+  timerInterval = setInterval(() => {
+    sessionSeconds--;
+    updateTimerDisplay();
+    if (sessionSeconds <= 0) {
+      clearInterval(timerInterval);
+      sessionSeconds = 0;
+      updateTimerDisplay();
+      if (isPlaying) pause();
+    }
+  }, 1000);
+}
+
+function updateTimerDisplay() {
+  timerValue.textContent = fmt(sessionSeconds);
+  timerValue.classList.remove('warning', 'critical');
+  timerBadge.classList.remove('visible');
+  timerBadge.textContent = '';
+
+  if (sessionSeconds <= 0) {
+    timerValue.classList.add('critical');
+    timerBadge.textContent = 'Ended';
+    timerBadge.classList.add('visible');
+  } else if (sessionSeconds <= 30) {
+    timerValue.classList.add('critical');
+  } else if (sessionSeconds <= 120) {
+    timerValue.classList.add('warning');
+    timerBadge.textContent = 'Low';
+    timerBadge.classList.add('visible');
+  }
+}
+
+// ─── Transport controls ─────────────────────────────────────
+
 playBtn.addEventListener('click', () => {
   if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
   if (isPlaying) pause();
@@ -818,12 +1495,12 @@ playBtn.addEventListener('click', () => {
 seekBar.addEventListener('input', () => {
   const dur = getActiveDuration();
   const t = (seekBar.value / 1000) * dur;
+  updateSeekDisplay(t, dur);
   if (isPlaying) {
     stop();
     play(t);
   } else {
     pausedAt = t;
-    timeDisplay.textContent = `${fmt(t)} / ${fmt(dur)}`;
   }
 });
 
@@ -847,13 +1524,33 @@ revealBtn.addEventListener('click', () => {
   });
 });
 
-// Reshuffle
+// Reshuffle — does NOT reset timer
 reshuffleBtn.addEventListener('click', () => {
   shuffle();
   activeIndex = -1;
   pausedAt = 0;
   seekBar.value = 0;
-  timeDisplay.textContent = `0:00 / ${fmt(duration)}`;
+  updateSeekDisplay(0, duration);
+
+  // Reset loop state
+  loopEnabled = false;
+  loopStart = 0;
+  loopEnd = 0;
+  loopToggle.classList.remove('active');
+  loopToggle.setAttribute('aria-pressed', 'false');
+  loopBody.style.display = 'none';
+  loopHint.style.display = 'none';
+  loopRegion.style.display = 'none';
+  loopStartMarker.style.display = 'none';
+  loopEndMarker.style.display = 'none';
+
+  // Reset waveform
+  waveformVisible = false;
+  waveformContainer.classList.add('hidden');
+  waveformToggle.textContent = 'Show';
+  waveformToggle.setAttribute('aria-pressed', 'false');
+  waveformToggle.classList.remove('active');
+
   buildUI();
 });
 
@@ -867,6 +1564,7 @@ document.addEventListener('keydown', e => {
   if (e.key === '3' && readyCount >= 3) switchTo(2);
   if (e.key === '4' && readyCount >= 4) switchTo(3);
   if (e.key === '5' && readyCount >= 5) switchTo(4);
+  if (e.key.toLowerCase() === 'l') toggleLoop();
   if (e.key.toLowerCase() === 'r' && !revealed) revealBtn.click();
 });
 </script>
