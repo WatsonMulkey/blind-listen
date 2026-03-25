@@ -1160,6 +1160,7 @@ function switchTo(btnIndex) {
 }
 
 function play(fromTime = pausedAt) {
+  if (isPlaying) stop(); // Defensive guard against leaked sourceNodes
   if (activeIndex < 0) {
     activeIndex = 0;
     updateButtons();
@@ -1485,7 +1486,7 @@ loopEndInput.addEventListener('change', () => {
   updateLoopInputs();
   updateLoopMarkers();
   updateLoopHint();
-  if (isPlaying) { stop(); play(Math.min(getCurrentTime(), loopEnd)); }
+  if (isPlaying) { const t = getCurrentTime(); stop(); play(Math.min(t, loopEnd)); }
 });
 
 // Draggable loop markers on waveform
@@ -1534,14 +1535,14 @@ function setupMarkerDrag(marker, isStart) {
     dragging = false;
     document.removeEventListener('mousemove', onDrag);
     document.removeEventListener('mouseup', onUp);
-    if (isPlaying) { stop(); play(Math.max(loopStart, Math.min(getCurrentTime(), loopEnd))); }
+    if (isPlaying) { const t = getCurrentTime(); stop(); play(Math.max(loopStart, Math.min(t, loopEnd))); }
   }
 
   function onTouchUp() {
     dragging = false;
     document.removeEventListener('touchmove', onTouchDrag);
     document.removeEventListener('touchend', onTouchUp);
-    if (isPlaying) { stop(); play(Math.max(loopStart, Math.min(getCurrentTime(), loopEnd))); }
+    if (isPlaying) { const t = getCurrentTime(); stop(); play(Math.max(loopStart, Math.min(t, loopEnd))); }
   }
 }
 
