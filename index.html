@@ -372,7 +372,10 @@ uploadZone.addEventListener('click', (e) => {
   if (e.target === fileInput) return; // prevent bubbling loop
   fileInput.click();
 });
-fileInput.addEventListener('change', e => handleFiles(e.target.files));
+fileInput.addEventListener('change', e => {
+  handleFiles(e.target.files);
+  fileInput.value = ''; // reset so same file can be re-selected
+});
 fileInput.addEventListener('click', e => e.stopPropagation()); // prevent bubble to uploadZone
 
 uploadZone.addEventListener('dragover', e => {
@@ -387,19 +390,28 @@ uploadZone.addEventListener('drop', e => {
 });
 
 async function handleFiles(fileList) {
-  const audioFiles = [...fileList].filter(f => f.type.startsWith('audio/') || /\.(wav|mp3|flac|aiff|ogg|m4a|aac|wma)$/i.test(f.name));
-  if (audioFiles.length < 2) {
-    fileCount.textContent = 'Need at least 2 audio files';
-    fileCount.classList.remove('ready');
-    return;
-  }
-  if (audioFiles.length > 5) {
-    fileCount.textContent = 'Max 5 files';
+  const newAudio = [...fileList].filter(f => f.type.startsWith('audio/') || /\.(wav|mp3|flac|aiff|ogg|m4a|aac|wma)$/i.test(f.name));
+  if (newAudio.length === 0) {
+    fileCount.textContent = 'No audio files detected';
     fileCount.classList.remove('ready');
     return;
   }
 
-  files = audioFiles;
+  // Accumulate files across multiple drops/selections
+  const combined = [...files, ...newAudio];
+  if (combined.length > 5) {
+    fileCount.textContent = `Too many files (${combined.length}) — max 5`;
+    fileCount.classList.remove('ready');
+    return;
+  }
+  if (combined.length < 2) {
+    files = combined;
+    fileCount.textContent = `${files.length} file — add at least 1 more`;
+    fileCount.classList.remove('ready');
+    return;
+  }
+
+  files = combined;
   fileCount.textContent = `${files.length} files loaded — decoding...`;
 
   if (!audioCtx) audioCtx = new AudioContext();
