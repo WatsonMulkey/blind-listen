@@ -537,7 +537,7 @@ function renderFileList() {
     li.className = itemClass;
     li.innerHTML =
       `<span class="file-status-icon" aria-hidden="true">${iconHTML}</span>` +
-      `<span class="file-name" title="${fs.name}">${fs.name}</span>` +
+      `<span class="file-name">Track ${fileStates.indexOf(fs) + 1}</span>` +
       `<span class="file-size">${fmtSize(fs.size)}</span>` +
       `<span class="file-status-text ${statusClass}">${statusText}</span>`;
     fileListEl.appendChild(li);
