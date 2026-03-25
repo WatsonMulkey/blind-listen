@@ -652,6 +652,55 @@
     cursor: not-allowed;
   }
 
+  /* Warning banners — shared base */
+  .warning-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    padding: 0.7rem 1rem;
+    border-radius: var(--radius-md);
+    font-size: 0.82rem;
+    line-height: 1.4;
+    width: 100%;
+    max-width: 480px;
+  }
+  .warning-banner-icon {
+    flex-shrink: 0;
+    font-size: 1rem;
+    line-height: 1;
+    margin-top: 0.1rem;
+  }
+  .warning-banner-text { flex: 1; color: var(--text-secondary); }
+  .warning-banner-text strong { color: var(--text-primary); }
+  .warning-banner-dismiss {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    flex-shrink: 0;
+    transition: color var(--transition-fast);
+  }
+  .warning-banner-dismiss:hover { color: var(--text-primary); }
+
+  /* Duration mismatch warning */
+  .duration-warning {
+    background: var(--warning-dim);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    margin-bottom: 1rem;
+  }
+  .duration-warning .warning-banner-icon { color: var(--warning); }
+
+  /* Loudness warning */
+  .loudness-warning {
+    background: rgba(99, 102, 241, 0.08);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    max-width: 560px;
+  }
+  .loudness-warning .warning-banner-icon { color: var(--accent); }
+
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
       animation-duration: 0.01ms !important;
@@ -677,6 +726,11 @@
 </div>
 <ul class="file-list" id="fileList" aria-label="File decode status" aria-live="polite"></ul>
 <div class="file-summary" id="fileSummary"></div>
+<div class="warning-banner duration-warning" id="durationWarning" role="note" style="display:none">
+  <span class="warning-banner-icon" aria-hidden="true">&#9888;</span>
+  <span class="warning-banner-text">These files differ in length by more than 10% &mdash; they may not be the same song.</span>
+  <button class="warning-banner-dismiss" id="durationDismiss" aria-label="Dismiss">&times;</button>
+</div>
 
 <div class="player" id="player">
   <div class="player-header">
@@ -689,6 +743,15 @@
       <div class="timer-value" id="timerValue">10:00</div>
       <div class="timer-badge" id="timerBadge"></div>
     </div>
+  </div>
+
+  <div class="warning-banner loudness-warning" id="loudnessWarning" role="note" style="display:none">
+    <span class="warning-banner-icon" aria-hidden="true">&#9888;</span>
+    <span class="warning-banner-text">
+      <strong>Loudness note:</strong> Louder mixes often sound "better" even when they're not.
+      Try to set a consistent listening level for each mix.
+    </span>
+    <button class="warning-banner-dismiss" id="loudnessDismiss" aria-label="Dismiss">&times;</button>
   </div>
 
   <div class="mix-buttons" id="mixButtons"></div>
@@ -821,6 +884,10 @@ const timerValue = document.getElementById('timerValue');
 const timerBadge = document.getElementById('timerBadge');
 const mainH1 = document.querySelector('body > h1');
 const mainSubtitle = document.querySelector('body > .subtitle');
+const durationWarning = document.getElementById('durationWarning');
+const durationDismiss = document.getElementById('durationDismiss');
+const loudnessWarning = document.getElementById('loudnessWarning');
+const loudnessDismiss = document.getElementById('loudnessDismiss');
 
 // Disable transport controls on load
 playBtn.disabled = true;
@@ -983,6 +1050,18 @@ async function handleFiles(fileList) {
     updateTransportState();
   }
 
+  // Check duration mismatch among decoded buffers
+  const decodedDurations = buffers.filter(b => b !== null).map(b => b.duration);
+  if (decodedDurations.length >= 2 && !sessionStorage.getItem('durationWarningDismissed')) {
+    const minDur = Math.min(...decodedDurations);
+    const maxDur = Math.max(...decodedDurations);
+    if (maxDur / minDur > 1.10) {
+      durationWarning.style.display = 'flex';
+    } else {
+      durationWarning.style.display = 'none';
+    }
+  }
+
   const readyCount = fileStates.filter(f => f.status === 'ready').length;
   if (readyCount >= 2) {
     duration = Math.max(...buffers.filter(b => b !== null).map(b => b.duration));
@@ -994,7 +1073,12 @@ async function handleFiles(fileList) {
     uploadZone.style.display = 'none';
     fileListEl.style.display = 'none';
     fileSummary.style.display = 'none';
+    durationWarning.style.display = 'none';
     player.classList.add('active');
+    // Show loudness warning if not previously dismissed
+    if (!sessionStorage.getItem('loudnessWarningDismissed')) {
+      loudnessWarning.style.display = 'flex';
+    }
     startSessionTimer();
   }
 }
@@ -1048,6 +1132,17 @@ function switchTo(btnIndex) {
 
   const newDur = getActiveDuration();
   const clamped = Math.min(currentTime, newDur);
+
+  // Clamp loop region for shorter buffers
+  if (loopEnabled) {
+    const dur = getShortestDuration();
+    loopEnd = Math.min(loopEnd, dur);
+    loopStart = Math.min(loopStart, loopEnd - 5);
+    if (loopStart < 0) loopStart = 0;
+    loopStartInput.value = fmt(loopStart);
+    loopEndInput.value = fmt(loopEnd);
+    updateLoopHint();
+  }
 
   // Redraw waveform for new active mix
   if (waveformVisible) {
@@ -1178,15 +1273,20 @@ function updateSeekDisplay(t, dur) {
 function fmt(s) {
   if (s < 0) s = 0;
   const m = Math.floor(s / 60);
-  const sec = Math.floor(s % 60);
-  return `${m}:${sec.toString().padStart(2, '0')}`;
+  const sec = s % 60;
+  const whole = Math.floor(sec);
+  const frac = sec - whole;
+  if (frac >= 0.05) {
+    return `${m}:${whole.toString().padStart(2, '0')}.${Math.floor(frac * 10)}`;
+  }
+  return `${m}:${whole.toString().padStart(2, '0')}`;
 }
 
 function parseTime(str) {
   const parts = str.trim().split(':');
   if (parts.length === 2) {
     const mins = parseInt(parts[0], 10) || 0;
-    const secs = parseInt(parts[1], 10) || 0;
+    const secs = parseFloat(parts[1]) || 0;
     return mins * 60 + secs;
   }
   return parseFloat(str) || 0;
@@ -1566,6 +1666,42 @@ document.addEventListener('keydown', e => {
   if (e.key === '5' && readyCount >= 5) switchTo(4);
   if (e.key.toLowerCase() === 'l') toggleLoop();
   if (e.key.toLowerCase() === 'r' && !revealed) revealBtn.click();
+});
+
+// ─── Warning dismiss handlers ────────────────────────────────
+
+durationDismiss.addEventListener('click', () => {
+  durationWarning.style.display = 'none';
+  sessionStorage.setItem('durationWarningDismissed', '1');
+});
+
+loudnessDismiss.addEventListener('click', () => {
+  loudnessWarning.style.display = 'none';
+  sessionStorage.setItem('loudnessWarningDismissed', '1');
+});
+
+// ─── Click-to-seek on waveform ───────────────────────────────
+
+waveformContainer.addEventListener('click', (e) => {
+  // Ignore clicks on loop marker handles
+  if (e.target.classList.contains('loop-marker-handle')) return;
+  if (activeIndex < 0) return;
+
+  const rect = waveformContainer.getBoundingClientRect();
+  const dur = getActiveDuration();
+  let pct = (e.clientX - rect.left) / rect.width;
+  pct = Math.max(0, Math.min(1, pct));
+  const time = pct * dur;
+
+  if (isPlaying) {
+    stop();
+    play(time);
+  } else {
+    pausedAt = time;
+    updateSeekDisplay(time, dur);
+    seekBar.value = (time / dur) * 1000;
+    waveformPlayhead.style.left = pct * 100 + '%';
+  }
 });
 </script>
 </body>
