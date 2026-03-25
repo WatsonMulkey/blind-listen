@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blind Listen</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: #0a0a0f;
+    color: #e0e0e0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+  }
+
+  h1 {
+    font-size: 1.6rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    letter-spacing: -0.02em;
+  }
+
+  .subtitle {
+    color: #666;
+    font-size: 0.85rem;
+    margin-bottom: 2rem;
+  }
+
+  /* Upload area */
+  .upload-zone {
+    border: 2px dashed #2a2a3a;
+    border-radius: 12px;
+    padding: 2.5rem 3rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    margin-bottom: 1rem;
+    max-width: 480px;
+    width: 100%;
+  }
+
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: #5b5bff;
+    background: #12121f;
+  }
+
+  .upload-zone p { color: #888; font-size: 0.9rem; }
+  .upload-zone .icon { font-size: 2rem; margin-bottom: 0.5rem; }
+
+  .file-count {
+    font-size: 0.8rem;
+    color: #555;
+    margin-bottom: 2rem;
+  }
+
+  .file-count.ready { color: #4ade80; }
+
+  /* Player section */
+  .player {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    width: 100%;
+    max-width: 560px;
+  }
+
+  .player.active { display: flex; }
+
+  /* Switch buttons */
+  .mix-buttons {
+    display: flex;
+    gap: 0.75rem;
+  }
+
+  .mix-btn {
+    width: 100px;
+    height: 100px;
+    border-radius: 16px;
+    border: 2px solid #2a2a3a;
+    background: #111118;
+    color: #ccc;
+    font-size: 1.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+  }
+
+  .mix-btn:hover { border-color: #5b5bff; background: #16162a; }
+
+  .mix-btn.active {
+    border-color: #5b5bff;
+    background: #1e1e45;
+    color: #fff;
+    box-shadow: 0 0 24px rgba(91, 91, 255, 0.25);
+  }
+
+  .mix-btn.revealed { font-size: 0.75rem; line-height: 1.3; padding: 0.5rem; text-align: center; word-break: break-word; }
+
+  /* Transport */
+  .transport {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+  }
+
+  .play-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 2px solid #3a3a4a;
+    background: #111118;
+    color: #e0e0e0;
+    font-size: 1.2rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+
+  .play-btn:hover { border-color: #5b5bff; background: #16162a; }
+
+  .seek-bar {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    background: #1e1e2e;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .seek-bar::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #5b5bff;
+    cursor: pointer;
+  }
+
+  .time-display {
+    font-size: 0.75rem;
+    color: #666;
+    font-variant-numeric: tabular-nums;
+    min-width: 90px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  /* Volume */
+  .volume-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    max-width: 200px;
+  }
+
+  .volume-label { font-size: 0.85rem; color: #666; }
+
+  .volume-bar {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: #1e1e2e;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .volume-bar::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #888;
+    cursor: pointer;
+  }
+
+  /* Notes */
+  .notes-section {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .notes-section h3 {
+    font-size: 0.85rem;
+    color: #666;
+    font-weight: 500;
+  }
+
+  .note-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .note-label {
+    font-weight: 700;
+    font-size: 1rem;
+    min-width: 24px;
+    color: #888;
+  }
+
+  .note-input {
+    flex: 1;
+    background: #111118;
+    border: 1px solid #2a2a3a;
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    color: #e0e0e0;
+    font-size: 0.85rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .note-input:focus { border-color: #5b5bff; }
+
+  /* Actions */
+  .actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+  }
+
+  .action-btn {
+    padding: 0.6rem 1.5rem;
+    border-radius: 8px;
+    border: 1px solid #2a2a3a;
+    background: #111118;
+    color: #ccc;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .action-btn:hover { border-color: #5b5bff; color: #fff; }
+
+  .action-btn.reveal {
+    background: #5b5bff;
+    border-color: #5b5bff;
+    color: #fff;
+    font-weight: 600;
+  }
+
+  .action-btn.reveal:hover { background: #4a4ae0; }
+
+  .action-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  /* Keyboard hints */
+  .hints {
+    font-size: 0.7rem;
+    color: #444;
+    text-align: center;
+    margin-top: 1rem;
+  }
+
+  .hints kbd {
+    background: #1a1a2a;
+    border: 1px solid #2a2a3a;
+    border-radius: 3px;
+    padding: 0.1em 0.4em;
+    font-family: inherit;
+    font-size: 0.7rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+<h1>Blind Listen</h1>
+<p class="subtitle">Unbiased mix comparison</p>
+
+<div class="upload-zone" id="uploadZone" role="button" aria-label="Upload audio files" tabindex="0">
+  <div class="icon">&#x1f3a7;</div>
+  <p>Drop 2-5 audio files here, or click to browse</p>
+  <input type="file" id="fileInput" accept="audio/*" multiple hidden>
+</div>
+<div class="file-count" id="fileCount"></div>
+
+<div class="player" id="player">
+  <div class="mix-buttons" id="mixButtons"></div>
+
+  <div class="transport">
+    <button class="play-btn" id="playBtn" aria-label="Play">&#9654;</button>
+    <input type="range" class="seek-bar" id="seekBar" min="0" max="1000" value="0" aria-label="Seek through audio">
+    <span class="time-display" id="timeDisplay">0:00 / 0:00</span>
+  </div>
+
+  <div class="volume-row">
+    <span class="volume-label">Vol</span>
+    <input type="range" class="volume-bar" id="volumeBar" min="0" max="100" value="80" aria-label="Volume">
+  </div>
+
+  <div class="notes-section">
+    <h3>Notes (jot thoughts before revealing)</h3>
+    <div id="noteRows"></div>
+  </div>
+
+  <div class="actions">
+    <button class="action-btn" id="reshuffleBtn" aria-label="Reshuffle mix assignments">Reshuffle</button>
+    <button class="action-btn reveal" id="revealBtn" aria-label="Reveal which file is which">Reveal</button>
+  </div>
+
+  <div class="hints">
+    <kbd>1</kbd>–<kbd>5</kbd> switch mixes &nbsp;&middot;&nbsp;
+    <kbd>Space</kbd> play/pause &nbsp;&middot;&nbsp;
+    <kbd>R</kbd> reveal
+  </div>
+</div>
+
+<script>
+const LABELS = ['X', 'Y', 'Z', 'W', 'V'];
+let files = [];
+let buffers = [];
+let shuffleMap = []; // shuffleMap[buttonIndex] = originalFileIndex
+let audioCtx = null;
+let sourceNode = null;
+let gainNode = null;
+let activeIndex = -1; // which button is active
+let isPlaying = false;
+let startedAt = 0; // audioCtx.currentTime when playback started
+let pausedAt = 0;  // how far into the buffer we paused
+let duration = 0;
+let revealed = false;
+let animFrame = null;
+
+const uploadZone = document.getElementById('uploadZone');
+const fileInput = document.getElementById('fileInput');
+const fileCount = document.getElementById('fileCount');
+const player = document.getElementById('player');
+const mixButtons = document.getElementById('mixButtons');
+const playBtn = document.getElementById('playBtn');
+const seekBar = document.getElementById('seekBar');
+const timeDisplay = document.getElementById('timeDisplay');
+const volumeBar = document.getElementById('volumeBar');
+const noteRows = document.getElementById('noteRows');
+const revealBtn = document.getElementById('revealBtn');
+const reshuffleBtn = document.getElementById('reshuffleBtn');
+
+// Upload handling
+uploadZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+uploadZone.addEventListener('dragover', e => {
+  e.preventDefault();
+  uploadZone.classList.add('dragover');
+});
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('dragover');
+  handleFiles(e.dataTransfer.files);
+});
+
+async function handleFiles(fileList) {
+  const audioFiles = [...fileList].filter(f => f.type.startsWith('audio/') || /\.(wav|mp3|flac|aiff|ogg|m4a|aac|wma)$/i.test(f.name));
+  if (audioFiles.length < 2) {
+    fileCount.textContent = 'Need at least 2 audio files';
+    fileCount.classList.remove('ready');
+    return;
+  }
+  if (audioFiles.length > 5) {
+    fileCount.textContent = 'Max 5 files';
+    fileCount.classList.remove('ready');
+    return;
+  }
+
+  files = audioFiles;
+  fileCount.textContent = `${files.length} files loaded — decoding...`;
+
+  if (!audioCtx) audioCtx = new AudioContext();
+  gainNode = audioCtx.createGain();
+  gainNode.gain.value = volumeBar.value / 100;
+  gainNode.connect(audioCtx.destination);
+
+  try {
+    buffers = await Promise.all(files.map(async f => {
+      const arr = await f.arrayBuffer();
+      return audioCtx.decodeAudioData(arr);
+    }));
+  } catch (err) {
+    fileCount.textContent = 'Error decoding audio: ' + err.message;
+    return;
+  }
+
+  duration = Math.max(...buffers.map(b => b.duration));
+  fileCount.textContent = `${files.length} files ready`;
+  fileCount.classList.add('ready');
+
+  shuffle();
+  buildUI();
+  player.classList.add('active');
+}
+
+function shuffle() {
+  stop();
+  revealed = false;
+  shuffleMap = Array.from({ length: files.length }, (_, i) => i);
+  for (let i = shuffleMap.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffleMap[i], shuffleMap[j]] = [shuffleMap[j], shuffleMap[i]];
+  }
+}
+
+function buildUI() {
+  mixButtons.innerHTML = '';
+  noteRows.innerHTML = '';
+
+  for (let i = 0; i < files.length; i++) {
+    const btn = document.createElement('button');
+    btn.className = 'mix-btn';
+    btn.textContent = LABELS[i];
+    btn.dataset.idx = i;
+    btn.setAttribute('role', 'radio');
+    btn.setAttribute('aria-pressed', 'false');
+    btn.addEventListener('click', () => switchTo(i));
+    mixButtons.appendChild(btn);
+
+    const row = document.createElement('div');
+    row.className = 'note-row';
+    row.innerHTML = `<span class="note-label">${LABELS[i]}</span><input class="note-input" placeholder="What do you hear?" data-idx="${i}" aria-label="Notes for Mix ${LABELS[i]}">`;
+    noteRows.appendChild(row);
+  }
+
+  revealBtn.textContent = 'Reveal';
+  revealBtn.disabled = false;
+  updateButtons();
+}
+
+function switchTo(btnIndex) {
+  if (revealed) return;
+  const currentTime = getCurrentTime();
+  const wasPlaying = isPlaying;
+
+  stop();
+  activeIndex = btnIndex;
+  updateButtons();
+
+  const newDur = getActiveDuration();
+  const clamped = Math.min(currentTime, newDur);
+
+  if (wasPlaying) {
+    play(clamped);
+  } else {
+    pausedAt = clamped;
+    timeDisplay.textContent = `${fmt(clamped)} / ${fmt(newDur)}`;
+  }
+}
+
+function play(fromTime = pausedAt) {
+  if (activeIndex < 0) {
+    activeIndex = 0;
+    updateButtons();
+  }
+
+  const fileIdx = shuffleMap[activeIndex];
+  const buffer = buffers[fileIdx];
+
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+
+  sourceNode = audioCtx.createBufferSource();
+  sourceNode.buffer = buffer;
+  sourceNode.connect(gainNode);
+
+  const clampedTime = Math.min(fromTime, buffer.duration);
+  sourceNode.start(0, clampedTime);
+  startedAt = audioCtx.currentTime - clampedTime;
+  isPlaying = true;
+  playBtn.innerHTML = '&#9646;&#9646;';
+  playBtn.setAttribute('aria-label', 'Pause');
+
+  sourceNode.onended = () => {
+    if (isPlaying && getCurrentTime() >= buffer.duration - 0.05) {
+      isPlaying = false;
+      pausedAt = 0;
+      playBtn.innerHTML = '&#9654;';
+    }
+  };
+
+  tickSeek();
+}
+
+function pause() {
+  pausedAt = getCurrentTime();
+  stop();
+}
+
+function stop() {
+  if (sourceNode) {
+    try { sourceNode.stop(); } catch (err) { console.warn('Audio stop:', err.message); }
+    sourceNode.disconnect();
+    sourceNode = null;
+  }
+  isPlaying = false;
+  playBtn.innerHTML = '&#9654;';
+  playBtn.setAttribute('aria-label', 'Play');
+  if (animFrame) cancelAnimationFrame(animFrame);
+}
+
+function getCurrentTime() {
+  if (!isPlaying) return pausedAt;
+  return audioCtx.currentTime - startedAt;
+}
+
+function getActiveDuration() {
+  if (activeIndex < 0) return duration;
+  const fileIdx = shuffleMap[activeIndex];
+  return buffers[fileIdx] ? buffers[fileIdx].duration : duration;
+}
+
+function tickSeek() {
+  if (!isPlaying) return;
+  const t = getCurrentTime();
+  const dur = getActiveDuration();
+  seekBar.value = (t / dur) * 1000;
+  seekBar.setAttribute('aria-valuetext', `${fmt(t)} of ${fmt(dur)}`);
+  timeDisplay.textContent = `${fmt(t)} / ${fmt(dur)}`;
+  animFrame = requestAnimationFrame(tickSeek);
+}
+
+function fmt(s) {
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${m}:${sec.toString().padStart(2, '0')}`;
+}
+
+function updateButtons() {
+  mixButtons.querySelectorAll('.mix-btn').forEach((btn, i) => {
+    const isActive = i === activeIndex;
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  });
+}
+
+// Transport controls
+playBtn.addEventListener('click', () => {
+  if (isPlaying) pause();
+  else play();
+});
+
+seekBar.addEventListener('input', () => {
+  const dur = getActiveDuration();
+  const t = (seekBar.value / 1000) * dur;
+  if (isPlaying) {
+    stop();
+    play(t);
+  } else {
+    pausedAt = t;
+    timeDisplay.textContent = `${fmt(t)} / ${fmt(dur)}`;
+  }
+});
+
+volumeBar.addEventListener('input', () => {
+  if (gainNode) gainNode.gain.value = volumeBar.value / 100;
+});
+
+// Reveal
+revealBtn.addEventListener('click', () => {
+  if (revealed) return;
+  revealed = true;
+  revealBtn.textContent = 'Revealed!';
+  revealBtn.disabled = true;
+
+  mixButtons.querySelectorAll('.mix-btn').forEach((btn, i) => {
+    const fileIdx = shuffleMap[i];
+    const name = files[fileIdx].name.replace(/\.[^.]+$/, '');
+    btn.classList.add('revealed');
+    btn.textContent = `${LABELS[i]}\n${name}`;
+    btn.style.whiteSpace = 'pre-line';
+  });
+});
+
+// Reshuffle
+reshuffleBtn.addEventListener('click', () => {
+  shuffle();
+  activeIndex = -1;
+  pausedAt = 0;
+  seekBar.value = 0;
+  timeDisplay.textContent = `0:00 / ${fmt(duration)}`;
+  buildUI();
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.code === 'Space') { e.preventDefault(); isPlaying ? pause() : play(); }
+  if (e.key === '1' && files.length >= 1) switchTo(0);
+  if (e.key === '2' && files.length >= 2) switchTo(1);
+  if (e.key === '3' && files.length >= 3) switchTo(2);
+  if (e.key === '4' && files.length >= 4) switchTo(3);
+  if (e.key === '5' && files.length >= 5) switchTo(4);
+  if (e.key.toLowerCase() === 'r' && !revealed) revealBtn.click();
+});
+</script>
+</body>
+</html>

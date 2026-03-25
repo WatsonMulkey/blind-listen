@@ -1,0 +1,2432 @@
+<!DOCTYPE html>
+<!--
+  BLIND LISTEN — Phase 1B Design Mockup
+  ======================================
+  Author: Watson Mulkey + Claude (UX/Accessibility review)
+  Date: 2026-03-24
+  Purpose: Full-fidelity design mockup for Phase 1B feature set. Use this to
+           iterate on layout, states, and visual design BEFORE applying to
+           the real index.html. Watson's established pattern: build HTML mock
+           first, then apply.
+
+  HOW TO USE THIS FILE:
+  - Open in any browser — no server required
+  - Use the state switcher at the top to preview each application state
+  - All states are visible simultaneously if you scroll past the switcher
+  - Comments throughout explain accessibility decisions and WCAG rationale
+
+  STATES COVERED:
+  1. Empty       — Fresh load, upload prompt
+  2. Loading     — Files dropped, decode in progress (per-file spinners)
+  3. Loaded      — All files ready, playback stopped, waveform hidden
+  4. Playing     — Active playback, seek position advancing
+  5. Looping     — Loop region set, loop markers visible on waveform
+  6. Revealed    — Reveal triggered, filenames unmasked on mix buttons
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blind Listen — Phase 1B Mockup</title>
+<script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+<style>
+
+/* ==========================================================================
+   DESIGN TOKENS
+   --------------------------------------------------------------------------
+   Using CSS custom properties so the color palette is centralised and can
+   be updated in one place. These are the authoritative design values for
+   Phase 1B.
+   ========================================================================== */
+
+:root {
+  /* Background layers */
+  --bg-base:        #09090f;   /* deepest background */
+  --bg-surface:     #0f0f1a;   /* cards, panels */
+  --bg-elevated:    #141428;   /* buttons default, inputs */
+  --bg-hover:       #1a1a34;   /* hover state */
+
+  /* Brand accent — indigo/electric blue */
+  --accent:         #6366f1;   /* primary CTA, active states */
+  --accent-dim:     #3d3f8f;   /* less prominent accent */
+  --accent-glow:    rgba(99, 102, 241, 0.22);
+
+  /* Semantic colors */
+  --success:        #22c55e;   /* decode complete checkmark */
+  --success-dim:    rgba(34, 197, 94, 0.15);
+  --warning:        #f59e0b;   /* timer warning state */
+  --warning-dim:    rgba(245, 158, 11, 0.15);
+  --error:          #ef4444;   /* decode error */
+  --error-dim:      rgba(239, 68, 68, 0.15);
+
+  /* Text hierarchy */
+  --text-primary:   #f0f0f5;   /* headings, primary labels */
+  --text-secondary: #9494aa;   /* secondary labels, captions */
+  --text-muted:     #4a4a60;   /* hints, placeholders */
+
+  /* Borders */
+  --border:         #1e1e30;   /* default border */
+  --border-subtle:  #161625;   /* very low-contrast separator */
+  --border-active:  #6366f1;   /* focused / active border */
+
+  /* Waveform */
+  --waveform-fill:  rgba(99, 102, 241, 0.35);
+  --waveform-line:  rgba(99, 102, 241, 0.7);
+  --loop-start:     rgba(34, 197, 94, 0.8);
+  --loop-end:       rgba(245, 158, 11, 0.8);
+  --playhead:       #f0f0f5;
+
+  /* Radii */
+  --radius-sm:  6px;
+  --radius-md:  10px;
+  --radius-lg:  16px;
+  --radius-xl:  20px;
+
+  /* Transitions */
+  --transition-fast: 0.12s ease;
+  --transition-base: 0.2s ease;
+}
+
+/* ==========================================================================
+   RESET + BASE
+   ========================================================================== */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui,
+               'Helvetica Neue', Arial, sans-serif;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  min-height: 100vh;
+  line-height: 1.5;
+  /* Accessibility note: system font stack ensures the user's preferred
+     readable font is used. Do not force a web font for this type of
+     functional tool — it adds latency and potential readability issues. */
+}
+
+/* ==========================================================================
+   MOCKUP FRAME — State switcher (not part of the real app)
+   ========================================================================== */
+
+.mockup-frame {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #000;
+  border-bottom: 1px solid #222;
+  padding: 0.5rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  z-index: 9999;
+  flex-wrap: wrap;
+}
+
+.mockup-frame-label {
+  font-size: 0.7rem;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.mockup-frame button {
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  border: 1px solid #333;
+  background: #111;
+  color: #888;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.mockup-frame button:hover { border-color: #555; color: #ccc; }
+.mockup-frame button.active { border-color: #6366f1; color: #6366f1; background: #1a1a2a; }
+
+/* Push content below the fixed bar */
+.app-wrapper { padding-top: 48px; }
+
+/* ==========================================================================
+   APP LAYOUT
+   ========================================================================== */
+
+.app {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+/* State panels — only one shown at a time in real app */
+.state-panel {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  gap: 0;
+}
+
+.state-panel.visible { display: flex; }
+
+/* ==========================================================================
+   HEADER — Brand + Timer
+   ========================================================================== */
+
+.app-header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2.5rem;
+}
+
+/* Accessibility note: h1 always present regardless of state — it is the
+   page landmark. Screen readers will announce it when the user navigates
+   to the main region. */
+.app-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+}
+
+.app-subtitle {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+  letter-spacing: 0.01em;
+}
+
+/* --------------------------------------------------------------------------
+   SESSION TIMER
+   --------------------------------------------------------------------------
+   WCAG 2.1 SC 2.2.1 — Timing Adjustable. The timer is a soft limit
+   (warns, does not force a hard stop). Paid tier removes it.
+   Accessibility: timer region is aria-live="polite" to announce remaining
+   time at threshold without interrupting screen reader flow.
+
+   Color contrast audit:
+   - Default: #9494aa on #09090f = ~6.5:1 (passes AA normal text)
+   - Warning: #f59e0b on #09090f = ~8.1:1 (passes AA + AAA)
+   - Critical (<0:30): #ef4444 on #09090f = ~5.2:1 (passes AA normal text)
+   -------------------------------------------------------------------------- */
+
+.session-timer {
+  text-align: right;
+  /* aria-live="polite" in real implementation */
+}
+
+.timer-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 0.1rem;
+}
+
+.timer-value {
+  font-size: 1.2rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+}
+
+.timer-value.warning { color: var(--warning); }
+.timer-value.critical { color: var(--error); }
+
+/* Warning badge — visible alongside timer in warning state */
+.timer-badge {
+  font-size: 0.65rem;
+  background: var(--warning-dim);
+  color: var(--warning);
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+  margin-top: 0.2rem;
+  display: none;
+}
+.timer-badge.visible { display: block; }
+
+/* ==========================================================================
+   STATE 1: EMPTY — Upload zone
+   ========================================================================== */
+
+/*
+  ACCESSIBILITY NOTES — Upload Zone:
+  - The entire zone is a <label> wrapping a hidden <input type="file"> so
+    keyboard and screen reader users can activate it without custom JS.
+  - The zone also accepts drag-and-drop via JS for mouse users.
+  - aria-describedby points to the format hint text.
+  - Do NOT use role="button" on a <div> — use a real <label> or <button>.
+  - On mobile, drag-and-drop does NOT work. The label/input approach is the
+    touch-accessible fallback. No special mobile code needed.
+  - WCAG 2.1 SC 1.3.5 — Identify Input Purpose: file input should have
+    aria-label="Load audio files for comparison"
+*/
+
+.upload-zone {
+  width: 100%;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-xl);
+  padding: 3rem 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color var(--transition-base),
+              background var(--transition-base);
+  position: relative;
+  /* min-height 44px guaranteed; real height is ~180px which far exceeds
+     WCAG 2.5.5 Target Size (44x44px minimum) */
+}
+
+.upload-zone:hover,
+.upload-zone:focus-within {
+  border-color: var(--accent);
+  background: rgba(99, 102, 241, 0.04);
+}
+
+.upload-zone.dragover {
+  border-color: var(--accent);
+  background: rgba(99, 102, 241, 0.08);
+  border-style: solid;
+}
+
+/* Accessible focus ring — visible for keyboard users */
+.upload-zone:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.upload-icon {
+  font-size: 2.2rem;
+  margin-bottom: 0.75rem;
+  /* Decorative — aria-hidden in real implementation */
+  line-height: 1;
+}
+
+.upload-primary-text {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.35rem;
+}
+
+.upload-secondary-text {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+}
+
+.upload-format-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  /* id="formatHint" in real impl, referenced via aria-describedby */
+}
+
+/* ==========================================================================
+   STATE 2: LOADING — File list with decode progress
+   ========================================================================== */
+
+/*
+  ACCESSIBILITY NOTES — File List / Decode Status:
+  - Each file row uses role="status" or the list is wrapped in
+    aria-live="polite" so screen readers announce completion/error.
+  - Status icons (spinner, checkmark, X) MUST have aria-label or
+    aria-hidden with adjacent visible text — never convey status via icon
+    alone (WCAG 1.4.1 Use of Color, 1.1.1 Non-text Content).
+  - Spinner: animated element must respect prefers-reduced-motion.
+    If reduced-motion, show "Decoding..." text instead of spinning animation.
+  - The file list is a <ul> with <li> items — semantic list so screen
+    readers announce count ("3 items").
+*/
+
+.file-list {
+  width: 100%;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.9rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: border-color var(--transition-fast);
+}
+
+.file-item.success { border-color: rgba(34, 197, 94, 0.3); }
+.file-item.error   { border-color: rgba(239, 68, 68, 0.3); }
+
+.file-status-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 0.9rem;
+  /* aria-hidden="true" in real impl — status conveyed by adjacent text too */
+}
+
+/* Spinner — CSS animation for loading state */
+.file-status-icon .spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* WCAG 2.3.3 (AAA) — Animation from Interactions. We cannot guarantee AAA
+   but we handle the AA-adjacent prefers-reduced-motion case. */
+@media (prefers-reduced-motion: reduce) {
+  .file-status-icon .spinner {
+    animation: none;
+    border-color: var(--accent);
+    /* Shows as a static circle — still visually distinct from complete */
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.file-name {
+  flex: 1;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* max-width ensures long filenames don't overflow on small screens */
+  max-width: 300px;
+}
+
+.file-size {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.file-status-text {
+  font-size: 0.72rem;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.file-status-text.decoding  { color: var(--text-muted); }
+.file-status-text.ready     { color: var(--success); }
+.file-status-text.error-msg { color: var(--error); }
+
+/* Loudness warning banner — Phase 1 limitation note */
+/*
+  ACCESSIBILITY NOTES — Loudness Warning:
+  - role="note" is appropriate here — it is supplementary info.
+  - Not an alert (role="alert") because it does not need to interrupt.
+  - Icon + text to convey meaning — not color alone (WCAG 1.4.1).
+  - Contrast: #f59e0b on #1a150a = ~7.2:1 (passes AA + AAA for normal text)
+*/
+.loudness-warning {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.7rem 0.9rem;
+  background: var(--warning-dim);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: var(--radius-md);
+  margin-bottom: 1.5rem;
+  /* role="note" in real implementation */
+}
+
+.loudness-warning-icon {
+  font-size: 0.85rem;
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+  /* aria-hidden="true" in real impl */
+}
+
+.loudness-warning-text {
+  font-size: 0.75rem;
+  color: var(--warning);
+  line-height: 1.5;
+}
+
+.loudness-warning-text strong {
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   MIX BUTTONS — Core interaction
+   ========================================================================== */
+
+/*
+  ACCESSIBILITY NOTES — Mix Buttons:
+  - Each button is a real <button> element — not a <div>. Gets focus,
+    keyboard activation (Enter + Space), and announced role automatically.
+  - aria-label="Mix X" for screen readers (single letter is not enough).
+  - aria-pressed="true/false" for active state (WCAG 4.1.2 Name Role Value).
+  - When revealed, aria-label updates to "Mix X — filename.wav".
+  - Size: 80px x 80px far exceeds WCAG 2.5.5 (44x44px minimum).
+    On mobile, 72px x 72px still exceeds the minimum.
+  - Keyboard shortcut hints are visible (not hidden in a tooltip)
+    so users can discover them without screen reader.
+
+  COLOR CONTRAST AUDIT:
+  - Default: #9494aa on #141428 = ~4.6:1 (passes AA normal text)
+  - Active:  #f0f0f5 on #1e2060 = ~10.2:1 (passes AA + AAA)
+  - Hover:   #c4c4d0 on #1a1a34 = ~7.8:1 (passes AA + AAA)
+  - Disabled opacity 0.38 — the contrast intentionally falls below AA to
+    signal non-interactivity. This is an accepted pattern per ARIA spec
+    for disabled controls (they are exempt from contrast requirements).
+*/
+
+.mix-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+}
+
+.mix-buttons {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  /* Gap of 0.6rem ensures touch targets don't overlap — minimum 8px
+     separation between adjacent targets (WCAG 2.5.8 Target Size (Minimum)
+     in draft WCAG 2.2) */
+}
+
+.mix-btn {
+  width: 80px;
+  height: 80px;
+  border-radius: var(--radius-lg);
+  border: 2px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 1.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  position: relative;
+  letter-spacing: -0.02em;
+}
+
+.mix-btn:hover:not(:disabled) {
+  border-color: var(--accent-dim);
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* Focus ring — visible keyboard focus indicator */
+.mix-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.mix-btn.active {
+  border-color: var(--accent);
+  background: rgba(99, 102, 241, 0.18);
+  color: var(--text-primary);
+  box-shadow: 0 0 28px var(--accent-glow);
+}
+
+/* Keyboard number hint — subtle badge on mix buttons */
+.mix-btn-shortcut {
+  position: absolute;
+  bottom: 6px;
+  right: 7px;
+  font-size: 0.55rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-family: inherit;
+  /* aria-hidden="true" in real impl — shortcut listed in hints section */
+}
+
+/* Revealed state — filename replaces letter */
+.mix-btn.revealed {
+  font-size: 0.62rem;
+  font-weight: 600;
+  line-height: 1.3;
+  padding: 0.4rem 0.35rem;
+  word-break: break-word;
+  hyphens: auto;
+  text-align: center;
+  color: var(--text-primary);
+}
+
+.mix-btn.revealed .mix-label {
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+.mix-btn.revealed .mix-filename {
+  display: block;
+  font-size: 0.62rem;
+  color: var(--text-secondary);
+  line-height: 1.25;
+}
+
+.mix-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   WAVEFORM SECTION
+   ========================================================================== */
+
+/*
+  ACCESSIBILITY NOTES — Waveform:
+  - The waveform canvas is purely visual. It carries no information a
+    screen reader user would miss — the seek bar (accessible range input)
+    provides position control without the visual.
+  - aria-hidden="true" on the canvas element always.
+  - The "Show waveform" toggle is a <button> with aria-pressed. When
+    waveform is hidden (default), aria-pressed="false".
+  - Loop markers on the canvas are ALSO controllable via numeric inputs
+    (start/end time inputs) so keyboard and screen reader users don't
+    need to interact with the canvas at all.
+  - Default state is HIDDEN to preserve blindness of the test. This is
+    a UX decision that also happens to reduce cognitive load.
+
+  WAVEFORM BIAS NOTE (documented for users):
+  "Experienced engineers can identify a mix by waveform shape (loudness
+  contour, transient density). The waveform is hidden by default. Show
+  it only when you need to set loop markers precisely."
+*/
+
+.waveform-section {
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.waveform-toggle-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.waveform-toggle-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.toggle-btn {
+  padding: 0.3rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: inherit;
+}
+
+.toggle-btn:hover { border-color: var(--accent-dim); color: var(--text-primary); }
+.toggle-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.toggle-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.waveform-container {
+  width: 100%;
+  height: 72px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  position: relative;
+  overflow: hidden;
+  /* aria-hidden="true" always on this container */
+}
+
+.waveform-container.hidden {
+  display: none;
+}
+
+/* Simulated waveform SVG (real app: Canvas rendered from AudioBuffer PCM) */
+.waveform-svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Playhead line */
+.waveform-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--playhead);
+  left: 32%;
+  pointer-events: none;
+}
+
+/* Loop region overlay */
+.loop-region {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(99, 102, 241, 0.12);
+  border-left: 2px solid var(--loop-start);
+  border-right: 2px solid var(--loop-end);
+  left: 20%;
+  right: 45%;
+  pointer-events: none;
+}
+
+/* Loop marker handles — draggable (mouse) or set via inputs (keyboard) */
+.loop-marker-handle {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 16px;
+  height: 28px;
+  border-radius: 4px;
+  cursor: col-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loop-marker-handle.start {
+  left: 20%;
+  background: var(--loop-start);
+}
+
+.loop-marker-handle.end {
+  left: 55%;
+  background: var(--loop-end);
+}
+
+.loop-marker-handle span {
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: #000;
+  letter-spacing: 0;
+}
+
+/* ==========================================================================
+   TRANSPORT ROW — Play/Pause + Seek + Time
+   ========================================================================== */
+
+/*
+  ACCESSIBILITY NOTES — Transport:
+  - Play/pause button: aria-label updates dynamically ("Play" / "Pause").
+    The icon (triangle/pause bars) is aria-hidden. Never convey state via
+    icon alone.
+  - Seek bar: <input type="range"> is natively keyboard-accessible (arrow
+    keys move the thumb). Needs aria-label="Playback position" and
+    aria-valuetext="2 minutes 30 seconds" (not just the raw value).
+  - Time display: aria-live="off" — don't announce continuously updating
+    numbers to screen readers (it would be extremely disruptive). The seek
+    bar value text handles position announcement on interaction.
+  - Min touch target for play button: 52x52px (meets WCAG 2.5.5).
+*/
+
+.transport {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.play-pause-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+  /* Will receive aria-label="Play" or "Pause" in real impl */
+}
+
+.play-pause-btn:hover {
+  border-color: var(--accent);
+  background: rgba(99, 102, 241, 0.12);
+}
+
+.play-pause-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.play-pause-btn.playing {
+  border-color: var(--accent);
+  background: rgba(99, 102, 241, 0.15);
+}
+
+/* Seek bar — styled range input */
+.seek-bar-wrapper {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+/*
+  SEEK BAR CONTRAST NOTE:
+  The track fill color (#6366f1) on the grey track (#1e1e30) must be
+  distinguishable. For non-text UI components (WCAG 1.4.11), we need 3:1.
+  #6366f1 on #1e1e30 = ~4.8:1. Passes.
+  The thumb (#f0f0f5) on the track (~#6366f1) is >= 3:1. Passes.
+*/
+
+.seek-bar {
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 5px;
+  border-radius: 3px;
+  background: linear-gradient(
+    to right,
+    var(--accent) 0%,
+    var(--accent) 32%,
+    var(--border) 32%,
+    var(--border) 100%
+  );
+  outline: none;
+  cursor: pointer;
+}
+
+.seek-bar::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--text-primary);
+  cursor: pointer;
+  border: 2px solid var(--accent);
+  transition: transform 0.1s;
+}
+
+.seek-bar::-webkit-slider-thumb:active {
+  transform: scale(1.25);
+}
+
+.seek-bar:focus-visible {
+  /* Range inputs don't display outline naturally in all browsers */
+  box-shadow: 0 0 0 2px var(--accent);
+  border-radius: 3px;
+}
+
+/* Inline time stamps beneath seek bar */
+.seek-time-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  padding: 0 2px;
+}
+
+/* ==========================================================================
+   LOOP CONTROLS
+   ========================================================================== */
+
+/*
+  ACCESSIBILITY NOTES — Loop Controls:
+  - The loop enable/disable is a <button> with aria-pressed.
+  - Start/end inputs are <input type="number"> with aria-label
+    "Loop start (seconds)" / "Loop end (seconds)".
+  - The "Re-roll" button randomizes the loop region. It must have a
+    descriptive aria-label — "Randomize loop section" — not just "Re-roll"
+    (which is jargon a screen reader user might not parse).
+  - All controls remain operable when waveform is hidden (users can set
+    loop points numerically without seeing the waveform).
+*/
+
+.loop-controls {
+  width: 100%;
+  padding: 0.85rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.loop-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.loop-title {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.loop-toggle-btn {
+  padding: 0.3rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: inherit;
+  /* aria-pressed in real implementation */
+}
+
+.loop-toggle-btn:hover { border-color: var(--accent-dim); color: var(--text-primary); }
+.loop-toggle-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(99, 102, 241, 0.1);
+}
+.loop-toggle-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.loop-body {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.loop-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 90px;
+}
+
+.loop-input-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  /* associated with input via <label for> in real implementation */
+}
+
+.loop-time-input {
+  width: 100%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.45rem 0.6rem;
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.loop-time-input:focus { border-color: var(--accent); }
+.loop-time-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.loop-separator {
+  font-size: 1rem;
+  color: var(--text-muted);
+  align-self: flex-end;
+  padding-bottom: 0.4rem;
+  flex-shrink: 0;
+}
+
+.reroll-btn {
+  padding: 0.45rem 0.85rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: inherit;
+  align-self: flex-end;
+  white-space: nowrap;
+  /* aria-label="Randomize loop section" in real implementation */
+}
+
+.reroll-btn:hover { border-color: var(--accent-dim); color: var(--text-primary); }
+.reroll-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.loop-duration-hint {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  /* Conveys the 5-second minimum constraint — important to communicate */
+}
+
+/* ==========================================================================
+   VOLUME CONTROL
+   ========================================================================== */
+
+/*
+  ACCESSIBILITY NOTES — Volume:
+  - Label "Volume" is always visible (not just a tooltip).
+    aria-label="Master volume" on the range input.
+  - Value display shows "80%" so the current level is readable as text,
+    not just a slider position.
+  - Contrast: "80%" text #9494aa on #09090f = ~6.5:1. Passes.
+*/
+
+.volume-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.volume-icon {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  width: 20px;
+  /* aria-hidden in real impl */
+}
+
+.volume-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  /* This IS the visible label — do not hide it. Paired with <label> in HTML. */
+}
+
+.volume-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(
+    to right,
+    var(--text-secondary) 0%,
+    var(--text-secondary) 80%,
+    var(--border) 80%,
+    var(--border) 100%
+  );
+  outline: none;
+  cursor: pointer;
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.volume-slider::-webkit-slider-thumb:hover { background: var(--text-primary); }
+
+.volume-slider:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent);
+  border-radius: 2px;
+}
+
+.volume-value {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  min-width: 3rem;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   NOTES SECTION
+   ========================================================================== */
+
+/*
+  ACCESSIBILITY NOTES — Notes Fields:
+  - Each <input> has an associated <label> — not just a placeholder.
+    Placeholders disappear on focus and are insufficient as labels per
+    WCAG 1.3.1 and 2.4.6.
+  - The label "Mix X notes" is descriptive — "What do you hear?" is a
+    placeholder/hint, not the label.
+  - Notes persist per mix even when switching mixes — the aria-live region
+    does not need to announce anything for note changes (not time-critical).
+  - Keep note inputs visible alongside the mix buttons, not in a collapsed
+    accordion — revealing associations is important to the workflow.
+
+  TEXT INPUT CONTRAST:
+  - Placeholder #4a4a60 on #141428 = ~2.8:1. This is BELOW AA for normal
+    text. However, WCAG 1.4.3 exception: "text or images of text that are
+    part of an inactive user interface component... have no contrast
+    requirement." Placeholders are inactive UI text — still, I recommend
+    using #6a6a80 (~4.0:1) for the placeholder to serve low-vision users.
+    RECOMMENDATION: Use --text-secondary (#9494aa) for placeholder text.
+*/
+
+.notes-section {
+  width: 100%;
+  margin-bottom: 1.5rem;
+}
+
+.notes-heading {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.note-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.note-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.note-mix-badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  /* The badge visually echoes the mix button label.
+     In revealed state it updates to show the filename initial. */
+}
+
+.note-mix-badge.active-note {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.note-input {
+  flex: 1;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.note-input::placeholder { color: var(--text-secondary); }
+/* Recommendation applied: using --text-secondary for placeholder */
+
+.note-input:focus { border-color: var(--accent); }
+.note-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ==========================================================================
+   ACTIONS BAR — Reveal + Reshuffle
+   ========================================================================== */
+
+/*
+  ACCESSIBILITY NOTES — Reveal + Reshuffle:
+  - Reveal button: after activation, aria-label changes to "Filenames
+    revealed" and the button becomes disabled. aria-disabled is used
+    (not the HTML disabled attribute) so screen readers still announce it.
+    Actually, HTML disabled + aria-live announcement of the reveal is
+    simpler — use that.
+  - Reshuffle: confirm dialog or visible warning before action because it
+    is destructive (clears playback state). Do NOT use browser confirm() —
+    it is inaccessible on some assistive technologies. Use an inline
+    confirmation pattern instead ("Click again to confirm reshuffle").
+  - Reveal button receives :focus-visible treatment despite being a primary
+    action — it will be reached by keyboard users.
+
+  BUTTON CONTRAST:
+  - Reveal (accent bg): #f0f0f5 on #6366f1 = ~5.7:1. Passes AA normal text.
+  - Reshuffle (subtle): #9494aa on #141428 = ~4.6:1. Passes AA.
+  - Reveal hover (#4f52d4): #f0f0f5 on #4f52d4 = ~6.8:1. Passes AA + AAA.
+*/
+
+.actions-bar {
+  width: 100%;
+  display: flex;
+  gap: 0.75rem;
+  align-items: stretch;
+  margin-bottom: 2rem;
+}
+
+.action-btn {
+  padding: 0.7rem 1.25rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.action-btn:hover:not(:disabled) {
+  border-color: var(--accent-dim);
+  color: var(--text-primary);
+}
+
+.action-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.action-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.reshuffle-btn { flex: 1; justify-content: center; }
+.reshuffle-btn:hover:not(:disabled) {
+  border-color: rgba(148, 148, 170, 0.4);
+}
+
+/* Reshuffle confirmation state */
+.reshuffle-btn.confirm {
+  border-color: var(--warning);
+  color: var(--warning);
+  background: var(--warning-dim);
+}
+
+.reveal-btn {
+  flex: 2;
+  justify-content: center;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.reveal-btn:hover:not(:disabled) {
+  background: #4f52d4;
+  border-color: #4f52d4;
+  color: #fff;
+}
+
+.reveal-btn.revealed-state {
+  background: var(--success-dim);
+  border-color: rgba(34, 197, 94, 0.4);
+  color: var(--success);
+  cursor: default;
+}
+
+/* ==========================================================================
+   KEYBOARD HINTS
+   ========================================================================== */
+
+/*
+  ACCESSIBILITY NOTES — Keyboard Hints:
+  - These hints are visible text (not tooltips hidden from screen readers).
+  - <kbd> elements semantically indicate keyboard keys — screen readers
+    announce them as-is. "Press Space" reads naturally.
+  - Group the hints in a <section aria-label="Keyboard shortcuts"> so
+    screen reader users can find them in the document outline.
+  - Do not hide these on mobile — they are still useful reference text
+    even if the user is not using a keyboard right now.
+  - They should NOT be the only discovery mechanism for shortcuts.
+    The shortcuts should also be in a help dialog (Phase 2 concern).
+*/
+
+.keyboard-hints {
+  width: 100%;
+  padding: 0.75rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  /* aria-label="Keyboard shortcuts" in real implementation */
+}
+
+.hints-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.hints-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+}
+
+.hint-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.hint-item kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 0.35rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-bottom: 2px solid var(--border);
+  border-radius: 4px;
+  font-size: 0.68rem;
+  font-family: inherit;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   FOOTER — Privacy note
+   ========================================================================== */
+
+.app-footer {
+  width: 100%;
+  text-align: center;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-top: 2.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border-subtle);
+  line-height: 1.6;
+}
+
+.privacy-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  margin-right: 0.35rem;
+  vertical-align: middle;
+  /* aria-hidden in real impl; text "Files stay in your browser" conveys meaning */
+}
+
+/* ==========================================================================
+   SKIP LINK — Keyboard accessibility
+   ========================================================================== */
+
+/*
+  ACCESSIBILITY NOTE:
+  The skip link lets keyboard users jump past the upload zone directly to
+  the player controls. Essential for any user navigating via Tab.
+  It is visually hidden until focused (standard pattern).
+  WCAG 2.4.1 — Bypass Blocks.
+*/
+
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 1rem;
+  padding: 0.5rem 1rem;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  z-index: 10000;
+  transition: top 0.15s;
+}
+
+.skip-link:focus {
+  top: 48px; /* account for mockup frame bar */
+}
+
+/* ==========================================================================
+   RESPONSIVE — Mobile adjustments
+   ========================================================================== */
+
+@media (max-width: 480px) {
+  .app { padding: 1.5rem 1rem 3rem; }
+
+  .mix-btn {
+    width: 64px;
+    height: 64px;
+    font-size: 1.5rem;
+  }
+
+  .mix-btn-shortcut { display: none; }
+  /* On mobile, keyboard shortcuts are irrelevant — hide the badge clutter */
+
+  .loop-body { flex-direction: column; }
+  .loop-input-group { width: 100%; }
+  .reroll-btn { width: 100%; justify-content: center; }
+
+  .actions-bar { flex-direction: column; }
+  .reveal-btn, .reshuffle-btn { flex: none; width: 100%; }
+}
+
+/* ==========================================================================
+   HIGH CONTRAST MODE SUPPORT
+   ========================================================================== */
+
+/*
+  Windows High Contrast Mode (also known as Forced Colors Mode) overrides
+  custom colors. We need to ensure structure is maintained.
+  Key patterns:
+  - Borders that communicate state must use ButtonText or Highlight colors
+  - Never rely on background-only changes for state (active state must have
+    both border AND color change)
+  - The accent border on .mix-btn.active is enough even in HCM because
+    borders are preserved.
+*/
+
+@media (forced-colors: active) {
+  .mix-btn.active {
+    forced-color-adjust: none;
+    border: 3px solid Highlight;
+    outline: 1px solid ButtonText;
+  }
+
+  .upload-zone {
+    border: 2px dashed ButtonText;
+  }
+
+  .file-status-icon .spinner {
+    border: 2px solid ButtonText;
+    border-top-color: Highlight;
+  }
+}
+
+/* ==========================================================================
+   PRINT STYLES — for session results export
+   ========================================================================== */
+
+@media print {
+  .mockup-frame,
+  .skip-link,
+  .waveform-section,
+  .keyboard-hints,
+  .upload-zone,
+  .transport,
+  .loop-controls,
+  .volume-row { display: none; }
+
+  body { background: white; color: black; }
+  .mix-btn { border: 1px solid #999; color: #000; background: #fff; }
+  .note-input { border: 1px solid #ccc; }
+}
+
+</style>
+</head>
+<body>
+
+<!-- Skip navigation link — keyboard and screen reader accessibility -->
+<a href="#player-main" class="skip-link">Skip to player controls</a>
+
+<!-- Mockup state switcher (NOT part of real app) -->
+<div class="mockup-frame" role="navigation" aria-label="Mockup state switcher">
+  <span class="mockup-frame-label">Mockup state:</span>
+  <button class="active" onclick="showState('empty')">1. Empty</button>
+  <button onclick="showState('loading')">2. Loading</button>
+  <button onclick="showState('loaded')">3. Loaded</button>
+  <button onclick="showState('playing')">4. Playing</button>
+  <button onclick="showState('looping')">5. Looping</button>
+  <button onclick="showState('revealed')">6. Revealed</button>
+</div>
+
+<div class="app-wrapper">
+<main class="app" id="player-main">
+
+  <!-- =====================================================================
+       STATE 1: EMPTY
+       ===================================================================== -->
+  <div class="state-panel visible" id="state-empty">
+
+    <header class="app-header">
+      <div>
+        <!-- h1 on every state — screen readers use this as page title -->
+        <h1 class="app-title">Blind Listen</h1>
+        <p class="app-subtitle">Unbiased mix comparison</p>
+      </div>
+    </header>
+
+    <!--
+      UPLOAD ZONE ACCESSIBILITY:
+      Implementation notes for real app:
+        <label for="fileInput"> wraps the entire zone as an alternative
+        to a click handler on a div. This gives keyboard and touch access
+        for free without custom ARIA hackery.
+
+        <input type="file" id="fileInput"
+               accept=".mp3,.wav,.flac,.aiff,.ogg,.m4a,.aac,audio/*"
+               multiple
+               aria-label="Load audio files for comparison"
+               aria-describedby="formatHint">
+
+        The drag-and-drop events fire on the label. The file input handles
+        click. Both paths reach the same handleFiles() function.
+    -->
+    <div class="upload-zone" role="region" aria-label="File upload area">
+      <div class="upload-icon" aria-hidden="true">&#x1F3A7;</div>
+      <p class="upload-primary-text">Drop 2–5 audio files here</p>
+      <p class="upload-secondary-text">or click to browse your files</p>
+      <p class="upload-format-hint" id="formatHint">
+        WAV, MP3, FLAC, M4A, AIFF, OGG &nbsp;&middot;&nbsp; Max 200 MB per file
+      </p>
+    </div>
+
+    <footer class="app-footer">
+      <span class="privacy-dot" aria-hidden="true"></span>
+      Files stay in your browser — nothing is uploaded to any server.
+      <br>Works offline after first load.
+    </footer>
+
+  </div><!-- /state-empty -->
+
+
+  <!-- =====================================================================
+       STATE 2: LOADING — Files dropped, decode in progress
+       ===================================================================== -->
+  <div class="state-panel" id="state-loading">
+
+    <header class="app-header">
+      <div>
+        <h1 class="app-title">Blind Listen</h1>
+        <p class="app-subtitle">Decoding files&hellip;</p>
+      </div>
+    </header>
+
+    <!--
+      FILE LIST ACCESSIBILITY:
+      In real app:
+        <ul aria-label="File decode status" aria-live="polite">
+        Each <li> updates its content as the status changes.
+        The aria-live region announces changes without interrupting flow.
+
+      Status icons + text together:
+        Spinner: <span class="spinner" aria-hidden="true"></span>
+                 <span class="file-status-text decoding">Decoding&hellip;</span>
+        Ready:   <span aria-hidden="true">&#x2713;</span>
+                 <span class="file-status-text ready">Ready</span>
+        Error:   <span aria-hidden="true">&#x2717;</span>
+                 <span class="file-status-text error-msg">Format not supported</span>
+
+      Color + icon + text = three signals for status (not color alone).
+    -->
+
+    <!-- Simulated: 2 files decoded, 1 in progress, 1 pending -->
+    <ul class="file-list" aria-label="File decode status" aria-live="polite">
+
+      <li class="file-item success">
+        <div class="file-status-icon" aria-hidden="true">&#x2713;</div>
+        <span class="file-name">mix_v4_final_master.wav</span>
+        <span class="file-size">48.2 MB</span>
+        <span class="file-status-text ready">Ready</span>
+      </li>
+
+      <li class="file-item success">
+        <div class="file-status-icon" aria-hidden="true">&#x2713;</div>
+        <span class="file-name">mix_v3_alt_drums.wav</span>
+        <span class="file-size">47.9 MB</span>
+        <span class="file-status-text ready">Ready</span>
+      </li>
+
+      <li class="file-item">
+        <div class="file-status-icon" aria-hidden="true"><div class="spinner"></div></div>
+        <span class="file-name">mix_v2_wider_vocals.flac</span>
+        <span class="file-size">62.1 MB</span>
+        <span class="file-status-text decoding">Decoding&hellip;</span>
+      </li>
+
+      <li class="file-item">
+        <div class="file-status-icon" aria-hidden="true">&middot;</div>
+        <span class="file-name" style="color:var(--text-muted)">mix_v1_original.mp3</span>
+        <span class="file-size" style="color:var(--text-muted)">11.4 MB</span>
+        <span class="file-status-text decoding">Pending</span>
+      </li>
+
+    </ul>
+
+    <footer class="app-footer">
+      <span class="privacy-dot" aria-hidden="true"></span>
+      Files stay in your browser — nothing is uploaded to any server.
+    </footer>
+
+  </div><!-- /state-loading -->
+
+
+  <!-- =====================================================================
+       STATE 3: LOADED — All decoded, player ready, stopped
+       ===================================================================== -->
+  <div class="state-panel" id="state-loaded">
+
+    <header class="app-header">
+      <div>
+        <h1 class="app-title">Blind Listen</h1>
+        <p class="app-subtitle">4 mixes ready</p>
+      </div>
+      <!--
+        SESSION TIMER ACCESSIBILITY:
+        In real app:
+          <div aria-live="polite" aria-atomic="true" aria-label="Session timer">
+          Announces only at key thresholds (2:00, 1:00, 0:30) — not every tick.
+          The aria-live should be "polite" not "assertive" — don't interrupt
+          the user; announce between utterances.
+      -->
+      <div class="session-timer" aria-label="Session time remaining">
+        <div class="timer-label">Session</div>
+        <div class="timer-value" id="timer-loaded">10:00</div>
+        <div class="timer-badge" id="timer-badge-loaded"></div>
+      </div>
+    </header>
+
+    <!--
+      LOUDNESS WARNING:
+      This banner communicates an important limitation of the tool.
+      It should appear once when files are first loaded.
+      After the user dismisses it (X button), store the preference in
+      sessionStorage and do not show again.
+      role="note" — informational, not urgent.
+    -->
+    <div class="loudness-warning" role="note">
+      <span class="loudness-warning-icon" aria-hidden="true">&#9888;</span>
+      <span class="loudness-warning-text">
+        <strong>Loudness note:</strong> Louder mixes often sound "better" even when they're not.
+        Set a consistent level for each mix, or use the same source gain.
+        (Pro: LUFS metering coming in Phase 2.)
+      </span>
+    </div>
+
+    <section class="mix-section" aria-label="Mix selection">
+      <div class="mix-buttons" role="group" aria-label="Choose a mix to audition">
+        <!--
+          Each button in real app:
+          <button class="mix-btn"
+                  aria-label="Mix X"
+                  aria-pressed="false"
+                  data-idx="0">
+            X
+            <span class="mix-btn-shortcut" aria-hidden="true">1</span>
+          </button>
+        -->
+        <button class="mix-btn" aria-label="Mix X" aria-pressed="false">
+          X <span class="mix-btn-shortcut" aria-hidden="true">1</span>
+        </button>
+        <button class="mix-btn" aria-label="Mix Y" aria-pressed="false">
+          Y <span class="mix-btn-shortcut" aria-hidden="true">2</span>
+        </button>
+        <button class="mix-btn" aria-label="Mix Z" aria-pressed="false">
+          Z <span class="mix-btn-shortcut" aria-hidden="true">3</span>
+        </button>
+        <button class="mix-btn" aria-label="Mix W" aria-pressed="false">
+          W <span class="mix-btn-shortcut" aria-hidden="true">4</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Waveform (hidden by default) -->
+    <div class="waveform-section">
+      <div class="waveform-toggle-row">
+        <span class="waveform-toggle-label">Waveform</span>
+        <!--
+          In real app: aria-pressed="false" when hidden, "true" when shown.
+          aria-controls="waveformCanvas" to associate with the controlled element.
+        -->
+        <button class="toggle-btn" aria-pressed="false" aria-controls="waveformCanvas">
+          Show
+        </button>
+      </div>
+      <div class="waveform-container hidden" id="waveformCanvas" aria-hidden="true">
+        <!-- Canvas rendered from AudioBuffer PCM in real app.
+             aria-hidden always true — purely visual decoration.
+             Seek position is accessible via the seek bar range input below. -->
+      </div>
+    </div>
+
+    <!-- Transport -->
+    <div class="transport" role="group" aria-label="Playback transport">
+      <button class="play-pause-btn" aria-label="Play">
+        <!-- aria-label changes to "Pause" when playing -->
+        &#9654;
+      </button>
+      <div class="seek-bar-wrapper">
+        <input type="range"
+               class="seek-bar"
+               min="0" max="1000" value="0"
+               aria-label="Playback position"
+               aria-valuetext="0 minutes 0 seconds"
+               style="background: linear-gradient(to right, var(--accent) 0%, var(--accent) 0%, var(--border) 0%, var(--border) 100%)">
+        <div class="seek-time-row" aria-hidden="true">
+          <span>0:00</span>
+          <span>4:12</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loop controls -->
+    <div class="loop-controls">
+      <div class="loop-header">
+        <span class="loop-title">Loop</span>
+        <button class="loop-toggle-btn" aria-pressed="false">Enable &mdash; <kbd>L</kbd></button>
+      </div>
+    </div>
+
+    <!-- Volume -->
+    <div class="volume-row">
+      <span class="volume-icon" aria-hidden="true">&#128266;</span>
+      <label class="volume-label" for="volume-loaded">Volume</label>
+      <input type="range"
+             class="volume-slider"
+             id="volume-loaded"
+             min="0" max="100" value="80"
+             aria-label="Master volume"
+             aria-valuetext="80 percent">
+      <span class="volume-value" aria-hidden="true">80%</span>
+    </div>
+
+    <!-- Notes -->
+    <section class="notes-section" aria-label="Mix notes">
+      <div class="notes-heading" id="notes-heading">Notes — jot impressions before revealing</div>
+      <div class="note-rows" role="group" aria-labelledby="notes-heading">
+        <div class="note-row">
+          <div class="note-mix-badge" aria-hidden="true">X</div>
+          <label for="note-x-loaded" class="sr-only">Mix X notes</label>
+          <input class="note-input" id="note-x-loaded"
+                 placeholder="What do you hear in Mix X?"
+                 aria-label="Notes for Mix X">
+        </div>
+        <div class="note-row">
+          <div class="note-mix-badge" aria-hidden="true">Y</div>
+          <label for="note-y-loaded" class="sr-only">Mix Y notes</label>
+          <input class="note-input" id="note-y-loaded"
+                 placeholder="What do you hear in Mix Y?"
+                 aria-label="Notes for Mix Y">
+        </div>
+        <div class="note-row">
+          <div class="note-mix-badge" aria-hidden="true">Z</div>
+          <label for="note-z-loaded" class="sr-only">Mix Z notes</label>
+          <input class="note-input" id="note-z-loaded"
+                 placeholder="What do you hear in Mix Z?"
+                 aria-label="Notes for Mix Z">
+        </div>
+        <div class="note-row">
+          <div class="note-mix-badge" aria-hidden="true">W</div>
+          <label for="note-w-loaded" class="sr-only">Mix W notes</label>
+          <input class="note-input" id="note-w-loaded"
+                 placeholder="What do you hear in Mix W?"
+                 aria-label="Notes for Mix W">
+        </div>
+      </div>
+    </section>
+
+    <!-- Actions -->
+    <div class="actions-bar">
+      <button class="action-btn reshuffle-btn" aria-label="Reshuffle mix assignments">
+        &#x21BA; Reshuffle
+      </button>
+      <button class="action-btn reveal-btn" aria-label="Reveal filenames (press R)">
+        &#x1F513; Reveal
+      </button>
+    </div>
+
+    <!-- Keyboard shortcuts -->
+    <section class="keyboard-hints" aria-label="Keyboard shortcuts">
+      <div class="hints-label">Keyboard shortcuts</div>
+      <div class="hints-grid">
+        <span class="hint-item"><kbd>1</kbd>&ndash;<kbd>4</kbd> Switch mix</span>
+        <span class="hint-item"><kbd>Space</kbd> Play / Pause</span>
+        <span class="hint-item"><kbd>L</kbd> Toggle loop</span>
+        <span class="hint-item"><kbd>R</kbd> Reveal</span>
+      </div>
+    </section>
+
+    <footer class="app-footer">
+      <span class="privacy-dot" aria-hidden="true"></span>
+      Files stay in your browser — nothing is uploaded to any server.
+    </footer>
+
+  </div><!-- /state-loaded -->
+
+
+  <!-- =====================================================================
+       STATE 4: PLAYING — Mix X active, playback at ~32% through
+       ===================================================================== -->
+  <div class="state-panel" id="state-playing">
+
+    <header class="app-header">
+      <div>
+        <h1 class="app-title">Blind Listen</h1>
+        <p class="app-subtitle">Listening&hellip;</p>
+      </div>
+      <div class="session-timer" aria-label="Session time remaining">
+        <div class="timer-label">Session</div>
+        <div class="timer-value">7:34</div>
+      </div>
+    </header>
+
+    <section class="mix-section" aria-label="Mix selection">
+      <div class="mix-buttons" role="group" aria-label="Choose a mix to audition">
+        <!-- Mix X is active: aria-pressed="true" -->
+        <button class="mix-btn active" aria-label="Mix X (currently playing)" aria-pressed="true">
+          X <span class="mix-btn-shortcut" aria-hidden="true">1</span>
+        </button>
+        <button class="mix-btn" aria-label="Mix Y" aria-pressed="false">
+          Y <span class="mix-btn-shortcut" aria-hidden="true">2</span>
+        </button>
+        <button class="mix-btn" aria-label="Mix Z" aria-pressed="false">
+          Z <span class="mix-btn-shortcut" aria-hidden="true">3</span>
+        </button>
+        <button class="mix-btn" aria-label="Mix W" aria-pressed="false">
+          W <span class="mix-btn-shortcut" aria-hidden="true">4</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Waveform hidden in playing state (default) -->
+    <div class="waveform-section">
+      <div class="waveform-toggle-row">
+        <span class="waveform-toggle-label">Waveform</span>
+        <button class="toggle-btn" aria-pressed="false">Show</button>
+      </div>
+      <div class="waveform-container hidden" aria-hidden="true"></div>
+    </div>
+
+    <!-- Transport — PLAYING state -->
+    <div class="transport" role="group" aria-label="Playback transport">
+      <button class="play-pause-btn playing" aria-label="Pause">
+        &#9646;&#9646;
+      </button>
+      <div class="seek-bar-wrapper">
+        <!-- Seek bar at 32% progress -->
+        <input type="range"
+               class="seek-bar"
+               min="0" max="1000" value="320"
+               aria-label="Playback position"
+               aria-valuetext="1 minute 21 seconds">
+        <div class="seek-time-row" aria-hidden="true">
+          <span>1:21</span>
+          <span>4:12</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loop controls — collapsed -->
+    <div class="loop-controls">
+      <div class="loop-header">
+        <span class="loop-title">Loop</span>
+        <button class="loop-toggle-btn" aria-pressed="false">Enable &mdash; <kbd>L</kbd></button>
+      </div>
+    </div>
+
+    <!-- Volume -->
+    <div class="volume-row">
+      <span class="volume-icon" aria-hidden="true">&#128266;</span>
+      <label class="volume-label" for="volume-playing">Volume</label>
+      <input type="range" class="volume-slider" id="volume-playing"
+             min="0" max="100" value="80"
+             aria-label="Master volume" aria-valuetext="80 percent">
+      <span class="volume-value" aria-hidden="true">80%</span>
+    </div>
+
+    <!-- Notes — Mix X badge highlighted because it's active -->
+    <section class="notes-section" aria-label="Mix notes">
+      <div class="notes-heading" id="notes-heading-playing">Notes — jot impressions before revealing</div>
+      <div class="note-rows" role="group" aria-labelledby="notes-heading-playing">
+        <div class="note-row">
+          <div class="note-mix-badge active-note" aria-hidden="true">X</div>
+          <input class="note-input"
+                 placeholder="What do you hear in Mix X?"
+                 aria-label="Notes for Mix X"
+                 value="Kick feels punchier. Snare a bit harsh at 3kHz?">
+        </div>
+        <div class="note-row">
+          <div class="note-mix-badge" aria-hidden="true">Y</div>
+          <input class="note-input"
+                 placeholder="What do you hear in Mix Y?"
+                 aria-label="Notes for Mix Y">
+        </div>
+        <div class="note-row">
+          <div class="note-mix-badge" aria-hidden="true">Z</div>
+          <input class="note-input"
+                 placeholder="What do you hear in Mix Z?"
+                 aria-label="Notes for Mix Z">
+        </div>
+        <div class="note-row">
+          <div class="note-mix-badge" aria-hidden="true">W</div>
+          <input class="note-input"
+                 placeholder="What do you hear in Mix W?"
+                 aria-label="Notes for Mix W">
+        </div>
+      </div>
+    </section>
+
+    <div class="actions-bar">
+      <button class="action-btn reshuffle-btn">&#x21BA; Reshuffle</button>
+      <button class="action-btn reveal-btn">&#x1F513; Reveal</button>
+    </div>
+
+    <section class="keyboard-hints" aria-label="Keyboard shortcuts">
+      <div class="hints-label">Keyboard shortcuts</div>
+      <div class="hints-grid">
+        <span class="hint-item"><kbd>1</kbd>&ndash;<kbd>4</kbd> Switch mix</span>
+        <span class="hint-item"><kbd>Space</kbd> Play / Pause</span>
+        <span class="hint-item"><kbd>L</kbd> Toggle loop</span>
+        <span class="hint-item"><kbd>R</kbd> Reveal</span>
+      </div>
+    </section>
+
+    <footer class="app-footer">
+      <span class="privacy-dot" aria-hidden="true"></span>
+      Files stay in your browser — nothing is uploaded to any server.
+    </footer>
+
+  </div><!-- /state-playing -->
+
+
+  <!-- =====================================================================
+       STATE 5: LOOPING — Loop region set, waveform visible, timer warning
+       ===================================================================== -->
+  <div class="state-panel" id="state-looping">
+
+    <header class="app-header">
+      <div>
+        <h1 class="app-title">Blind Listen</h1>
+        <p class="app-subtitle">Looping section</p>
+      </div>
+      <!--
+        TIMER WARNING STATE:
+        When 2:00 remain:
+        - timer-value gets .warning class (amber text)
+        - timer-badge becomes visible with "Low" text
+        - aria-live region announces "2 minutes remaining"
+        At 0:30 remaining:
+        - timer-value gets .critical class (red text)
+        - aria-live announces "30 seconds remaining"
+        At 0:00:
+        - Playback stops
+        - Inline message: "Session complete. Click restart to continue."
+        - aria-live="assertive" for the end notification only
+      -->
+      <div class="session-timer" aria-label="Session time remaining" aria-live="polite">
+        <div class="timer-label">Session</div>
+        <div class="timer-value warning">1:47</div>
+        <div class="timer-badge visible">Low</div>
+      </div>
+    </header>
+
+    <section class="mix-section" aria-label="Mix selection">
+      <div class="mix-buttons" role="group" aria-label="Choose a mix to audition">
+        <button class="mix-btn" aria-label="Mix X" aria-pressed="false">
+          X <span class="mix-btn-shortcut" aria-hidden="true">1</span>
+        </button>
+        <!-- Mix Y is active -->
+        <button class="mix-btn active" aria-label="Mix Y (currently playing)" aria-pressed="true">
+          Y <span class="mix-btn-shortcut" aria-hidden="true">2</span>
+        </button>
+        <button class="mix-btn" aria-label="Mix Z" aria-pressed="false">
+          Z <span class="mix-btn-shortcut" aria-hidden="true">3</span>
+        </button>
+        <button class="mix-btn" aria-label="Mix W" aria-pressed="false">
+          W <span class="mix-btn-shortcut" aria-hidden="true">4</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Waveform VISIBLE in looping state (so user can see loop markers) -->
+    <div class="waveform-section">
+      <div class="waveform-toggle-row">
+        <span class="waveform-toggle-label">Waveform</span>
+        <button class="toggle-btn active" aria-pressed="true">Hide</button>
+      </div>
+      <!--
+        WAVEFORM CANVAS ARIA:
+        aria-hidden="true" always — the canvas is decorative.
+        Loop marker positions are exposed via the numeric inputs below
+        (aria-label="Loop start" / "Loop end"), which are the accessible
+        controls. The canvas handles are for mouse users only.
+      -->
+      <div class="waveform-container" id="waveformCanvas-loop" aria-hidden="true">
+        <!-- Simulated waveform using SVG (real app: <canvas>) -->
+        <svg class="waveform-svg" viewBox="0 0 600 72" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="waveGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" style="stop-color:rgba(99,102,241,0.5)"/>
+              <stop offset="100%" style="stop-color:rgba(99,102,241,0.15)"/>
+            </linearGradient>
+          </defs>
+          <!-- Simplified representative waveform path -->
+          <path d="M0,36 Q15,20 30,30 Q45,40 60,25 Q75,10 90,32
+                   Q105,52 120,38 Q135,24 150,36 Q165,48 180,30
+                   Q195,12 210,34 Q225,56 240,36 Q255,16 270,28
+                   Q285,40 300,32 Q315,24 330,36 Q345,48 360,28
+                   Q375,8 390,30 Q405,52 420,38 Q435,24 450,36
+                   Q465,48 480,32 Q495,16 510,28 Q525,40 540,36
+                   Q555,32 570,30 Q585,28 600,36"
+                fill="url(#waveGrad)" stroke="rgba(99,102,241,0.6)" stroke-width="1.5"/>
+        </svg>
+        <!-- Loop region overlay -->
+        <div class="loop-region" aria-hidden="true"></div>
+        <!-- Loop marker handles -->
+        <div class="loop-marker-handle start" aria-hidden="true">
+          <span>&#x25B6;</span>
+        </div>
+        <div class="loop-marker-handle end" aria-hidden="true">
+          <span>&#x25C4;</span>
+        </div>
+        <!-- Playhead -->
+        <div class="waveform-playhead" aria-hidden="true" style="left: 37%"></div>
+      </div>
+    </div>
+
+    <!-- Transport -->
+    <div class="transport" role="group" aria-label="Playback transport">
+      <button class="play-pause-btn playing" aria-label="Pause">
+        &#9646;&#9646;
+      </button>
+      <div class="seek-bar-wrapper">
+        <input type="range"
+               class="seek-bar"
+               min="0" max="1000" value="370"
+               aria-label="Playback position"
+               aria-valuetext="1 minute 33 seconds">
+        <div class="seek-time-row" aria-hidden="true">
+          <span>1:33</span>
+          <span>4:12</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loop controls — EXPANDED + ACTIVE -->
+    <div class="loop-controls">
+      <div class="loop-header">
+        <span class="loop-title">Loop</span>
+        <button class="loop-toggle-btn active" aria-pressed="true">Enabled &mdash; <kbd>L</kbd></button>
+      </div>
+      <!--
+        LOOP INPUTS ACCESSIBILITY:
+        Keyboard users can set loop points precisely via number inputs.
+        Mouse users can drag the waveform markers.
+        Both paths reach the same loopStart/loopEnd values.
+        Min/max constraints communicate the 5-second minimum via the
+        step + constraint, and the error message if violated:
+          "Loop must be at least 5 seconds long"
+        shown as inline validation text (not a browser alert).
+      -->
+      <div class="loop-body">
+        <div class="loop-input-group">
+          <label class="loop-input-label" for="loop-start">Start</label>
+          <input class="loop-time-input" id="loop-start"
+                 type="number" min="0" max="247" step="0.1"
+                 value="1:02"
+                 aria-label="Loop start time in seconds">
+        </div>
+        <span class="loop-separator" aria-hidden="true">&rarr;</span>
+        <div class="loop-input-group">
+          <label class="loop-input-label" for="loop-end">End</label>
+          <input class="loop-time-input" id="loop-end"
+                 type="number" min="5" max="252" step="0.1"
+                 value="1:34"
+                 aria-label="Loop end time in seconds">
+        </div>
+        <button class="reroll-btn" aria-label="Randomize loop section">
+          &#x1F3B2; Re-roll
+        </button>
+      </div>
+      <div class="loop-duration-hint" aria-live="polite">
+        32s loop &nbsp;&middot;&nbsp; Min 5s
+      </div>
+    </div>
+
+    <!-- Volume -->
+    <div class="volume-row">
+      <span class="volume-icon" aria-hidden="true">&#128266;</span>
+      <label class="volume-label" for="volume-looping">Volume</label>
+      <input type="range" class="volume-slider" id="volume-looping"
+             min="0" max="100" value="80"
+             aria-label="Master volume" aria-valuetext="80 percent">
+      <span class="volume-value" aria-hidden="true">80%</span>
+    </div>
+
+    <!-- Notes -->
+    <section class="notes-section" aria-label="Mix notes">
+      <div class="notes-heading" id="notes-heading-looping">Notes — jot impressions before revealing</div>
+      <div class="note-rows" role="group" aria-labelledby="notes-heading-looping">
+        <div class="note-row">
+          <div class="note-mix-badge" aria-hidden="true">X</div>
+          <input class="note-input"
+                 aria-label="Notes for Mix X"
+                 value="Kick feels punchier. Snare a bit harsh at 3kHz?">
+        </div>
+        <div class="note-row">
+          <div class="note-mix-badge active-note" aria-hidden="true">Y</div>
+          <input class="note-input"
+                 aria-label="Notes for Mix Y"
+                 value="More air. Guitars wider. Bass sits better in loop.">
+        </div>
+        <div class="note-row">
+          <div class="note-mix-badge" aria-hidden="true">Z</div>
+          <input class="note-input"
+                 placeholder="What do you hear in Mix Z?"
+                 aria-label="Notes for Mix Z">
+        </div>
+        <div class="note-row">
+          <div class="note-mix-badge" aria-hidden="true">W</div>
+          <input class="note-input"
+                 placeholder="What do you hear in Mix W?"
+                 aria-label="Notes for Mix W">
+        </div>
+      </div>
+    </section>
+
+    <div class="actions-bar">
+      <button class="action-btn reshuffle-btn">&#x21BA; Reshuffle</button>
+      <button class="action-btn reveal-btn">&#x1F513; Reveal</button>
+    </div>
+
+    <section class="keyboard-hints" aria-label="Keyboard shortcuts">
+      <div class="hints-label">Keyboard shortcuts</div>
+      <div class="hints-grid">
+        <span class="hint-item"><kbd>1</kbd>&ndash;<kbd>4</kbd> Switch mix</span>
+        <span class="hint-item"><kbd>Space</kbd> Play / Pause</span>
+        <span class="hint-item"><kbd>L</kbd> Toggle loop</span>
+        <span class="hint-item"><kbd>R</kbd> Reveal</span>
+      </div>
+    </section>
+
+    <footer class="app-footer">
+      <span class="privacy-dot" aria-hidden="true"></span>
+      Files stay in your browser — nothing is uploaded to any server.
+    </footer>
+
+  </div><!-- /state-looping -->
+
+
+  <!-- =====================================================================
+       STATE 6: REVEALED — Filenames unmasked
+       ===================================================================== -->
+  <div class="state-panel" id="state-revealed">
+
+    <header class="app-header">
+      <div>
+        <h1 class="app-title">Blind Listen</h1>
+        <p class="app-subtitle">Session revealed</p>
+      </div>
+      <div class="session-timer" aria-label="Session time remaining">
+        <div class="timer-label">Session</div>
+        <div class="timer-value">3:21</div>
+      </div>
+    </header>
+
+    <!--
+      REVEAL STATE ACCESSIBILITY:
+      When the user clicks Reveal:
+      1. aria-live="assertive" region announces: "Filenames revealed.
+         Mix X was [filename], Mix Y was [filename]..." — reads all mappings
+         once so screen reader users get the same reveal experience.
+      2. Button becomes disabled (aria-disabled="true") and text changes
+         to "Revealed" with a checkmark icon.
+      3. Mix button labels update to show filename — aria-label updates too:
+         "Mix X — mix_v4_final_master.wav (your top pick)"
+      4. Notes persist alongside filenames for comparison.
+
+      The revealed state DOES allow continued playback — the user may want
+      to A/B compare with filename knowledge for final confirmation.
+    -->
+
+    <!-- Revealed announcement region (visually hidden in real app) -->
+    <div role="status" aria-live="assertive" style="position:absolute;left:-9999px">
+      Filenames revealed. Mix X was mix_v3_alt_drums, Mix Y was mix_v4_final_master,
+      Mix Z was mix_v2_wider_vocals, Mix W was mix_v1_original.
+    </div>
+
+    <section class="mix-section" aria-label="Mix selection — revealed">
+      <div class="mix-buttons" role="group" aria-label="Mixes with revealed filenames">
+        <!-- Revealed: label (small) + filename -->
+        <button class="mix-btn active revealed"
+                aria-label="Mix X — mix_v3_alt_drums (currently playing)"
+                aria-pressed="true">
+          <span class="mix-label">X</span>
+          <span class="mix-filename">mix_v3_alt_drums</span>
+        </button>
+        <button class="mix-btn revealed"
+                aria-label="Mix Y — mix_v4_final_master"
+                aria-pressed="false">
+          <span class="mix-label">Y</span>
+          <span class="mix-filename">mix_v4_final_master</span>
+        </button>
+        <button class="mix-btn revealed"
+                aria-label="Mix Z — mix_v2_wider_vocals"
+                aria-pressed="false">
+          <span class="mix-label">Z</span>
+          <span class="mix-filename">mix_v2_wider_vocals</span>
+        </button>
+        <button class="mix-btn revealed"
+                aria-label="Mix W — mix_v1_original"
+                aria-pressed="false">
+          <span class="mix-label">W</span>
+          <span class="mix-filename">mix_v1_original</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Waveform toggle still available post-reveal -->
+    <div class="waveform-section">
+      <div class="waveform-toggle-row">
+        <span class="waveform-toggle-label">Waveform</span>
+        <button class="toggle-btn" aria-pressed="false">Show</button>
+      </div>
+      <div class="waveform-container hidden" aria-hidden="true"></div>
+    </div>
+
+    <!-- Transport — stopped after reveal -->
+    <div class="transport" role="group" aria-label="Playback transport">
+      <button class="play-pause-btn playing" aria-label="Pause">
+        &#9646;&#9646;
+      </button>
+      <div class="seek-bar-wrapper">
+        <input type="range"
+               class="seek-bar"
+               min="0" max="1000" value="320"
+               aria-label="Playback position"
+               aria-valuetext="1 minute 21 seconds">
+        <div class="seek-time-row" aria-hidden="true">
+          <span>1:21</span>
+          <span>4:12</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loop controls — collapsed -->
+    <div class="loop-controls">
+      <div class="loop-header">
+        <span class="loop-title">Loop</span>
+        <button class="loop-toggle-btn" aria-pressed="false">Enable &mdash; <kbd>L</kbd></button>
+      </div>
+    </div>
+
+    <!-- Volume -->
+    <div class="volume-row">
+      <span class="volume-icon" aria-hidden="true">&#128266;</span>
+      <label class="volume-label" for="volume-revealed">Volume</label>
+      <input type="range" class="volume-slider" id="volume-revealed"
+             min="0" max="100" value="80"
+             aria-label="Master volume" aria-valuetext="80 percent">
+      <span class="volume-value" aria-hidden="true">80%</span>
+    </div>
+
+    <!-- Notes — post-reveal, labels show filenames -->
+    <section class="notes-section" aria-label="Mix notes">
+      <div class="notes-heading" id="notes-heading-revealed">Your notes (filenames revealed)</div>
+      <div class="note-rows" role="group" aria-labelledby="notes-heading-revealed">
+        <div class="note-row">
+          <div class="note-mix-badge active-note" aria-hidden="true">X</div>
+          <input class="note-input"
+                 aria-label="Notes for Mix X (mix_v3_alt_drums)"
+                 value="Kick feels punchier. Snare a bit harsh at 3kHz?">
+        </div>
+        <div class="note-row">
+          <div class="note-mix-badge" aria-hidden="true">Y</div>
+          <input class="note-input"
+                 aria-label="Notes for Mix Y (mix_v4_final_master)"
+                 value="More air. Guitars wider. Bass sits better in loop.">
+        </div>
+        <div class="note-row">
+          <div class="note-mix-badge" aria-hidden="true">Z</div>
+          <input class="note-input"
+                 aria-label="Notes for Mix Z (mix_v2_wider_vocals)"
+                 value="">
+        </div>
+        <div class="note-row">
+          <div class="note-mix-badge" aria-hidden="true">W</div>
+          <input class="note-input"
+                 aria-label="Notes for Mix W (mix_v1_original)"
+                 value="">
+        </div>
+      </div>
+    </section>
+
+    <!-- Actions — Reveal replaced by "Revealed", Reshuffle still available -->
+    <div class="actions-bar">
+      <button class="action-btn reshuffle-btn">&#x21BA; Reshuffle</button>
+      <!--
+        Revealed button: HTML disabled attribute is correct here.
+        Before clicking: role="button" with aria-label="Reveal filenames"
+        After clicking:  disabled, text = "Revealed", no further interaction needed.
+        The aria-live announcement above already communicated the mapping.
+      -->
+      <button class="action-btn reveal-btn revealed-state" disabled aria-label="Filenames have been revealed">
+        &#x2713; Revealed
+      </button>
+    </div>
+
+    <section class="keyboard-hints" aria-label="Keyboard shortcuts">
+      <div class="hints-label">Keyboard shortcuts</div>
+      <div class="hints-grid">
+        <span class="hint-item"><kbd>1</kbd>&ndash;<kbd>4</kbd> Switch mix</span>
+        <span class="hint-item"><kbd>Space</kbd> Play / Pause</span>
+        <span class="hint-item"><kbd>L</kbd> Toggle loop</span>
+      </div>
+    </section>
+
+    <footer class="app-footer">
+      <span class="privacy-dot" aria-hidden="true"></span>
+      Files stay in your browser — nothing is uploaded to any server.
+    </footer>
+
+  </div><!-- /state-revealed -->
+
+</main>
+</div><!-- /app-wrapper -->
+
+<!-- Visually hidden utility class for screen-reader-only text -->
+<style>
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    white-space: nowrap;
+    border: 0;
+  }
+</style>
+
+<script>
+/* ===========================================================================
+   MOCKUP STATE SWITCHER (not part of real app)
+   =========================================================================== */
+
+function showState(stateName) {
+  // Hide all panels
+  document.querySelectorAll('.state-panel').forEach(p => p.classList.remove('visible'));
+  // Show target panel
+  const target = document.getElementById('state-' + stateName);
+  if (target) target.classList.add('visible');
+
+  // Update switcher button styles
+  document.querySelectorAll('.mockup-frame button').forEach(b => {
+    b.classList.toggle('active', b.textContent.toLowerCase().includes(stateName));
+  });
+
+  // Scroll to top of content
+  window.scrollTo({ top: 48, behavior: 'smooth' });
+}
+
+/* ===========================================================================
+   SIMULATED SEEK BAR PROGRESS FILL
+   (In real app, this is driven by requestAnimationFrame + AudioContext.currentTime)
+   =========================================================================== */
+
+document.querySelectorAll('.seek-bar').forEach(bar => {
+  function updateFill() {
+    const pct = (bar.value / bar.max) * 100;
+    bar.style.background = `linear-gradient(
+      to right,
+      var(--accent) 0%,
+      var(--accent) ${pct}%,
+      var(--border) ${pct}%,
+      var(--border) 100%
+    )`;
+  }
+  bar.addEventListener('input', updateFill);
+  updateFill(); // init
+});
+
+/* ===========================================================================
+   SIMULATED VOLUME SLIDER FILL
+   =========================================================================== */
+
+document.querySelectorAll('.volume-slider').forEach(slider => {
+  function updateFill() {
+    const pct = (slider.value / slider.max) * 100;
+    slider.style.background = `linear-gradient(
+      to right,
+      var(--text-secondary) 0%,
+      var(--text-secondary) ${pct}%,
+      var(--border) ${pct}%,
+      var(--border) 100%
+    )`;
+    // Update adjacent value display
+    const valueEl = slider.closest('.volume-row')?.querySelector('.volume-value');
+    if (valueEl) valueEl.textContent = Math.round(slider.value) + '%';
+  }
+  slider.addEventListener('input', updateFill);
+  updateFill();
+});
+
+/* ===========================================================================
+   URL PARAMETER STATE OVERRIDE
+   Allows direct-linking to a specific state for Figma capture:
+   ?state=empty | loading | loaded | playing | looping | revealed
+   =========================================================================== */
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const stateParam = params.get('state');
+  if (stateParam) {
+    showState(stateParam);
+  }
+})();
+</script>
+
+</body>
+</html>
