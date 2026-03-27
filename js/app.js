@@ -215,15 +215,10 @@ function removeFile(idx) {
 
 // ─── Upload handling ──────────────────────────────────────────
 
-uploadZone.addEventListener('click', (e) => {
-  if (e.target === fileInput) return;
-  fileInput.click();
-});
 fileInput.addEventListener('change', e => {
   handleFiles(e.target.files);
   fileInput.value = '';
 });
-fileInput.addEventListener('click', e => e.stopPropagation());
 
 uploadZone.addEventListener('dragover', e => {
   e.preventDefault();
