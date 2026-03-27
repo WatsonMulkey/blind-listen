@@ -139,13 +139,47 @@
   }
 
   /* Session timer */
-  .session-timer { text-align: right; }
+  .session-timer { text-align: right; position: relative; }
   .timer-label {
     font-size: 0.65rem;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--text-muted);
     margin-bottom: 0.1rem;
+  }
+  .timer-tooltip-icon {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    line-height: 14px;
+    font-size: 0.55rem;
+    text-align: center;
+    border-radius: 50%;
+    border: 1px solid var(--text-muted);
+    color: var(--text-muted);
+    cursor: help;
+    vertical-align: middle;
+    margin-left: 0.25rem;
+    position: relative;
+  }
+  .timer-tooltip-icon:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    right: 0;
+    top: 120%;
+    width: 200px;
+    padding: 0.5rem 0.6rem;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    font-weight: 400;
+    letter-spacing: normal;
+    text-transform: none;
+    line-height: 1.4;
+    z-index: 10;
+    white-space: normal;
   }
   .timer-value {
     font-size: 1.2rem;
@@ -930,7 +964,7 @@
       <p class="subtitle" style="margin-bottom:0">Unbiased mix comparison</p>
     </div>
     <div class="session-timer" id="sessionTimer" aria-label="Session time remaining" aria-live="polite">
-      <div class="timer-label">Session</div>
+      <div class="timer-label">Session<span class="timer-tooltip-icon" data-tooltip="After 10 minutes your session will end and your files will be deleted.">?</span></div>
       <div class="timer-value" id="timerValue">10:00</div>
       <div class="timer-badge" id="timerBadge"></div>
     </div>
