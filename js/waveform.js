@@ -78,9 +78,9 @@ function drawSpectrogram(buffer, bufferIdx) {
   if (numFrames <= 0) return;
 
   // Pre-compute Hann window
-  const window = new Float32Array(fftSize);
+  const hannWindow = new Float32Array(fftSize);
   for (let i = 0; i < fftSize; i++) {
-    window[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (fftSize - 1)));
+    hannWindow[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (fftSize - 1)));
   }
 
   // Log frequency mapping (20Hz to 20kHz)
@@ -113,7 +113,7 @@ function drawSpectrogram(buffer, bufferIdx) {
 
     // Apply window and prepare FFT input
     for (let i = 0; i < fftSize; i++) {
-      real[i] = (offset + i < data.length) ? data[offset + i] * window[i] : 0;
+      real[i] = (offset + i < data.length) ? data[offset + i] * hannWindow[i] : 0;
       imag[i] = 0;
     }
 
