@@ -215,6 +215,7 @@ function removeFile(idx) {
 
 // ─── Upload handling ──────────────────────────────────────────
 
+uploadZone.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', e => {
   handleFiles(e.target.files);
   fileInput.value = '';
