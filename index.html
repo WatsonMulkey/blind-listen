@@ -910,11 +910,11 @@
 <h1>Blind Listen</h1>
 <p class="subtitle">Unbiased mix comparison</p>
 
-<div class="upload-zone" id="uploadZone" role="button" aria-label="Upload audio files" tabindex="0">
+<label class="upload-zone" id="uploadZone" role="button" aria-label="Upload audio files" tabindex="0">
   <div class="icon">&#x1f3a7;</div>
   <p>Drop 2-5 audio files here, or click to browse</p>
-  <input type="file" id="fileInput" accept="audio/*" multiple hidden>
-</div>
+  <input type="file" id="fileInput" accept="audio/*" multiple style="display:none">
+</label>
 <ul class="file-list" id="fileList" aria-label="File decode status" aria-live="polite"></ul>
 <div class="file-summary" id="fileSummary"></div>
 <div class="warning-banner duration-warning" id="durationWarning" role="note" style="display:none">
