@@ -842,31 +842,31 @@
   }
   .level-match-badge.visible { display: inline-block; }
 
-  /* Lock-in button on mix buttons */
+  /* Favorite button on mix buttons */
   .mix-btn-wrapper {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 0.35rem;
   }
-  .lock-btn {
+  .fav-btn {
     background: none;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     color: var(--text-muted);
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     padding: 0.15rem 0.5rem;
     cursor: pointer;
     transition: all var(--transition-fast);
     font-family: inherit;
   }
-  .lock-btn:hover { border-color: var(--accent-dim); color: var(--text-secondary); }
-  .lock-btn.locked {
+  .fav-btn:hover { border-color: var(--accent-dim); color: var(--text-secondary); }
+  .fav-btn.favorited {
     border-color: var(--warning);
     color: var(--warning);
     background: var(--warning-dim);
   }
-  .lock-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .fav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
   /* Consistency result (shown on reveal) */
   .consistency-result {

@@ -45,14 +45,14 @@ function buildUI() {
     btn.addEventListener('click', () => switchTo(i));
     wrapper.appendChild(btn);
 
-    // Lock button below each mix button
-    const lockBtn = document.createElement('button');
-    lockBtn.className = 'lock-btn' + (lockedBtnIndex === i ? ' locked' : '');
-    lockBtn.textContent = lockedBtnIndex === i ? '\u{1F512} Locked' : '\u{1F513} Lock';
-    lockBtn.dataset.idx = i;
-    lockBtn.disabled = revealed;
-    lockBtn.addEventListener('click', () => toggleLock(i));
-    wrapper.appendChild(lockBtn);
+    // Favorite button below each mix button
+    const favBtn = document.createElement('button');
+    favBtn.className = 'fav-btn' + (lockedBtnIndex === i ? ' favorited' : '');
+    favBtn.textContent = lockedBtnIndex === i ? '\u2605' : '\u2606';
+    favBtn.dataset.idx = i;
+    favBtn.disabled = revealed;
+    favBtn.addEventListener('click', () => toggleLock(i));
+    wrapper.appendChild(favBtn);
 
     mixButtons.appendChild(wrapper);
 
@@ -73,19 +73,19 @@ function toggleLock(btnIndex) {
   // PAID_GATE: lock-in reshuffle (ungated for now — all users get this)
   if (revealed) return;
   if (lockedBtnIndex === btnIndex) {
-    // Unlock
+    // Unfavorite
     lockedBtnIndex = -1;
     lockedFileIndex = -1;
   } else {
-    // Lock this pick
+    // Favorite this pick
     lockedBtnIndex = btnIndex;
     lockedFileIndex = shuffleMap[btnIndex];
     firstPickFileIndex = shuffleMap[btnIndex];
   }
-  // Update lock button visuals
-  mixButtons.querySelectorAll('.lock-btn').forEach((btn, i) => {
-    btn.classList.toggle('locked', lockedBtnIndex === i);
-    btn.textContent = lockedBtnIndex === i ? '\u{1F512} Locked' : '\u{1F513} Lock';
+  // Update favorite button visuals
+  mixButtons.querySelectorAll('.fav-btn').forEach((btn, i) => {
+    btn.classList.toggle('favorited', lockedBtnIndex === i);
+    btn.textContent = lockedBtnIndex === i ? '\u2605' : '\u2606';
   });
 }
 
@@ -317,7 +317,7 @@ revealBtn.addEventListener('click', () => {
   });
 
   // Disable lock buttons
-  mixButtons.querySelectorAll('.lock-btn').forEach(btn => { btn.disabled = true; });
+  mixButtons.querySelectorAll('.fav-btn').forEach(btn => { btn.disabled = true; });
 
   // Show export buttons after reveal
   showExportButtons();
