@@ -44,7 +44,7 @@ let spectrogramCache = new Map(); // bufferIndex → ImageData
 let loopEnabled = false;
 let loopStart = 0;
 let loopEnd = 0;
-let waveformVisible = true;
+let waveformVisible = false;
 let sessionSeconds = 600;
 let timerInterval = null;
 let timerStarted = false;
@@ -86,18 +86,96 @@ const seekLoopRegion = document.getElementById('seekLoopRegion');
 const loopControls = document.getElementById('loopControls');
 const timerValue = document.getElementById('timerValue');
 const timerBadge = document.getElementById('timerBadge');
-const mainH1 = document.querySelector('body > h1');
-const mainSubtitle = document.querySelector('body > .subtitle');
+const mainH1 = document.querySelector('main > h1');
+const mainSubtitle = document.querySelector('main > .subtitle');
 const durationWarning = document.getElementById('durationWarning');
 const durationDismiss = document.getElementById('durationDismiss');
 const consistencyResult = document.getElementById('consistencyResult');
 const spectrogramToggle = document.getElementById('spectrogramToggle');
 const spectrogramCanvas = document.getElementById('spectrogramCanvas');
 const waveformLabel = document.getElementById('waveformLabel');
+const notesToggle = document.getElementById('notesToggle');
 const exportActions = document.getElementById('exportActions');
 const exportCopyBtn = document.getElementById('exportCopyBtn');
 const exportTxtBtn = document.getElementById('exportTxtBtn');
 const exportPdfBtn = document.getElementById('exportPdfBtn');
+const restartBtn = document.getElementById('restartBtn');
+const startListenBtn = document.getElementById('startListenBtn');
+
+// Start listening — transition from upload to player, begin timer
+startListenBtn.addEventListener('click', () => {
+  duration = Math.max(...buffers.filter(b => b !== null).map(b => b.duration));
+  computeAllMetering().then(() => renderMixStats());
+  shuffle();
+  buildUI();
+  // Auto-select first mix so the user only needs to press Play
+  activeIndex = 0;
+  updateButtons();
+  document.querySelector('.player-header h2').textContent = `Comparing ${shuffleMap.length} mixes`;
+  startListenBtn.disabled = true;
+  mainH1.style.display = 'none';
+  mainSubtitle.style.display = 'none';
+  uploadZone.style.display = 'none';
+  fileListEl.style.display = 'none';
+  fileSummary.style.display = 'none';
+  durationWarning.style.display = 'none';
+  startListenBtn.style.display = 'none';
+  restartBtn.style.display = 'none';
+  player.classList.add('active');
+  if (waveformVisible && shuffleMap.length > 0) {
+    const fileIdx = shuffleMap[0];
+    if (buffers[fileIdx]) drawWaveform(buffers[fileIdx]);
+  }
+  startSessionTimer();
+});
+
+// Restart session — clear everything and return to upload screen
+restartBtn.addEventListener('click', () => {
+  if (isPlaying) stop();
+  files = [];
+  buffers = [];
+  fileStates = [];
+  shuffleMap = [];
+  activeIndex = -1;
+  pausedAt = 0;
+  revealed = false;
+  lockedBtnIndex = -1;
+  lockedFileIndex = -1;
+  firstPickFileIndex = -1;
+  refFile = null;
+  refBuffer = null;
+  refActive = false;
+  loopEnabled = false;
+  loopStart = 0;
+  loopEnd = 0;
+  spectrogramCache.clear();
+  levelMatchEnabled = false;
+  levelMatchGain && (levelMatchGain.gain.value = 1.0);
+  mixGainOffsets = [];
+  mixLUFS = [];
+  mixPeak = [];
+  mixRMS = [];
+  spectrogramMode = false;
+  lastAnnouncedThreshold = null;
+  sessionStorage.removeItem('durationWarningDismissed');
+  durationWarning.style.display = 'none';
+  restartBtn.style.display = 'none';
+  startListenBtn.style.display = 'none';
+  fileListEl.innerHTML = '';
+  fileSummary.textContent = '';
+  fileSummary.classList.remove('all-ready');
+  player.classList.remove('active');
+  mainH1.style.display = '';
+  mainSubtitle.style.display = '';
+  uploadZone.style.display = '';
+  fileListEl.style.display = '';
+  fileSummary.style.display = '';
+  fileInput.value = '';
+  // Reset timer
+  if (timerInterval) clearInterval(timerInterval);
+  timerStarted = false;
+  sessionSeconds = 600;
+});
 
 // Disable transport controls on load
 playBtn.disabled = true;
@@ -160,7 +238,7 @@ function renderFileList() {
       `<span class="file-status-icon" aria-hidden="true">${iconHTML}</span>` +
       `<span class="file-name">Track ${idx + 1}</span>` +
       `<span class="file-size">${fmtSize(fs.size)}</span>` +
-      `<span class="file-status-text ${statusClass}" title="${statusText}">${statusText}</span>`;
+      `<span class="file-status-text ${statusClass}" title="${escapeHTML(statusText)}">${escapeHTML(statusText)}</span>`;
 
     if (fs.status === 'error' || fs.status === 'ready') {
       const removeBtn = document.createElement('button');
@@ -194,6 +272,19 @@ function renderFileList() {
     fileSummary.textContent = 'No files could be decoded';
     fileSummary.classList.remove('all-ready');
   }
+
+  // Update upload zone text to show remaining capacity
+  const uploadP = document.getElementById('uploadInstructions');
+  if (uploadP) {
+    const remaining = 5 - total;
+    if (total > 0 && remaining > 0) {
+      uploadP.textContent = `${total} file${total > 1 ? 's' : ''} added \u2014 drop up to ${remaining} more, or click to browse`;
+    } else if (remaining === 0) {
+      uploadP.textContent = 'Maximum 5 files loaded';
+    } else {
+      uploadP.textContent = 'Drop 2-5 audio files here, or click to browse';
+    }
+  }
 }
 
 function updateTransportState() {
@@ -216,6 +307,12 @@ function removeFile(idx) {
 // ─── Upload handling ──────────────────────────────────────────
 
 uploadZone.addEventListener('click', () => fileInput.click());
+uploadZone.addEventListener('keydown', e => {
+  if (e.key === ' ' || e.key === 'Enter') {
+    e.preventDefault();
+    fileInput.click();
+  }
+});
 fileInput.addEventListener('change', e => {
   handleFiles(e.target.files);
   fileInput.value = '';
@@ -283,35 +380,26 @@ async function handleFiles(fileList) {
   }
 
   // Check duration mismatch among decoded buffers
+  let durationMismatch = false;
   const decodedDurations = buffers.filter(b => b !== null).map(b => b.duration);
   if (decodedDurations.length >= 2 && !sessionStorage.getItem('durationWarningDismissed')) {
     const minDur = Math.min(...decodedDurations);
     const maxDur = Math.max(...decodedDurations);
     if (maxDur / minDur > 1.10) {
+      durationMismatch = true;
       durationWarning.style.display = 'flex';
+      fileSummary.textContent = 'Please upload your files again';
+      fileSummary.classList.remove('all-ready');
+      startListenBtn.style.display = 'none';
+      restartBtn.style.display = 'inline-block';
     } else {
       durationWarning.style.display = 'none';
     }
   }
 
   const readyCount = fileStates.filter(f => f.status === 'ready').length;
-  if (readyCount >= 2) {
-    duration = Math.max(...buffers.filter(b => b !== null).map(b => b.duration));
-    computeAllMetering().then(() => renderMixStats());
-    shuffle();
-    buildUI();
-    mainH1.style.display = 'none';
-    mainSubtitle.style.display = 'none';
-    uploadZone.style.display = 'none';
-    fileListEl.style.display = 'none';
-    fileSummary.style.display = 'none';
-    durationWarning.style.display = 'none';
-    player.classList.add('active');
-    if (waveformVisible && shuffleMap.length > 0) {
-      const fileIdx = shuffleMap[0];
-      if (buffers[fileIdx]) drawWaveform(buffers[fileIdx]);
-    }
-    startSessionTimer();
+  if (readyCount >= 2 && !durationMismatch) {
+    startListenBtn.style.display = 'inline-block';
   }
 }
 

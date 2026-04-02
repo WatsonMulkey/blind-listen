@@ -1,7 +1,15 @@
 // ─── UI Assembly ──────────────────────────────────────────────
 
+function escapeHTML(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
 function buildUI() {
   mixButtons.innerHTML = '';
+  mixButtons.setAttribute('role', 'toolbar');
+  mixButtons.setAttribute('aria-label', 'Mix selection');
   noteRows.innerHTML = '';
 
   // Reference track button (before blind mixes)
@@ -11,9 +19,9 @@ function buildUI() {
     refBtnEl.id = 'refBtn';
     if (refBuffer) {
       const name = refFile.name.replace(/\.[^.]+$/, '');
-      refBtnEl.innerHTML = `<span class="ref-label">REF</span><span class="ref-name" title="${refFile.name}">${name}</span>`;
+      refBtnEl.innerHTML = `<span class="ref-label">REF</span><span class="ref-name" title="${escapeHTML(refFile.name)}">${escapeHTML(name)}</span>`;
     } else {
-      refBtnEl.innerHTML = `<span class="ref-label">REF</span><span style="font-size:0.65rem">+ Add</span>`;
+      refBtnEl.innerHTML = `<span class="ref-label">REF</span><span class="ref-add-label">+ Add</span>`;
     }
     refBtnEl.addEventListener('click', () => {
       if (!refBuffer) {
@@ -40,7 +48,6 @@ function buildUI() {
     btn.className = 'mix-btn';
     btn.textContent = LABELS[i];
     btn.dataset.idx = i;
-    btn.setAttribute('role', 'radio');
     btn.setAttribute('aria-pressed', 'false');
     btn.addEventListener('click', () => switchTo(i));
     wrapper.appendChild(btn);
@@ -48,9 +55,11 @@ function buildUI() {
     // Favorite button below each mix button
     const favBtn = document.createElement('button');
     favBtn.className = 'fav-btn' + (lockedBtnIndex === i ? ' favorited' : '');
-    favBtn.textContent = lockedBtnIndex === i ? '\u2605' : '\u2606';
+    favBtn.textContent = lockedBtnIndex === i ? '\u2605 Pick' : '\u2606 Pick';
     favBtn.dataset.idx = i;
     favBtn.disabled = revealed;
+    favBtn.setAttribute('aria-label', `Mark Mix ${LABELS[i]} as your pick`);
+    favBtn.setAttribute('aria-pressed', lockedBtnIndex === i ? 'true' : 'false');
     favBtn.addEventListener('click', () => toggleLock(i));
     wrapper.appendChild(favBtn);
 
@@ -77,15 +86,27 @@ function toggleLock(btnIndex) {
     lockedBtnIndex = -1;
     lockedFileIndex = -1;
   } else {
+    // Show reshuffle hint on first-ever favorite
+    const wasUnlocked = lockedBtnIndex === -1;
     // Favorite this pick
     lockedBtnIndex = btnIndex;
     lockedFileIndex = shuffleMap[btnIndex];
     firstPickFileIndex = shuffleMap[btnIndex];
+    if (wasUnlocked) {
+      const hint = document.getElementById('reshuffleHint');
+      if (hint && !hint.dataset.shown) {
+        hint.textContent = 'Now try Reshuffle to test your pick!';
+        hint.style.display = 'block';
+        hint.dataset.shown = '1';
+        setTimeout(() => { hint.style.display = 'none'; }, 5000);
+      }
+    }
   }
   // Update favorite button visuals
   mixButtons.querySelectorAll('.fav-btn').forEach((btn, i) => {
     btn.classList.toggle('favorited', lockedBtnIndex === i);
-    btn.textContent = lockedBtnIndex === i ? '\u2605' : '\u2606';
+    btn.textContent = lockedBtnIndex === i ? '\u2605 Pick' : '\u2606 Pick';
+    btn.setAttribute('aria-pressed', lockedBtnIndex === i ? 'true' : 'false');
   });
 }
 
@@ -124,7 +145,11 @@ function switchTo(btnIndex) {
     play(clamped);
   } else {
     pausedAt = clamped;
+    seekBar.value = newDur > 0 ? (clamped / newDur) * 1000 : 0;
     updateSeekDisplay(clamped, newDur);
+    if (waveformVisible && newDur > 0) {
+      waveformPlayhead.style.left = (clamped / newDur) * 100 + '%';
+    }
   }
 }
 
@@ -148,14 +173,19 @@ function switchToRef() {
     playRef(currentTime);
   } else {
     pausedAt = currentTime;
-    updateSeekDisplay(currentTime, refBuffer.duration);
+    const dur = refBuffer.duration;
+    seekBar.value = dur > 0 ? (currentTime / dur) * 1000 : 0;
+    updateSeekDisplay(currentTime, dur);
+    if (waveformVisible && dur > 0) {
+      waveformPlayhead.style.left = (currentTime / dur) * 100 + '%';
+    }
   }
 }
 
 function deactivateRef() {
   refActive = false;
   if (refSourceNode) {
-    try { refSourceNode.stop(); } catch (e) {}
+    try { refSourceNode.stop(); } catch (e) { console.warn('Ref stop:', e.message); }
     refSourceNode.disconnect();
     refSourceNode = null;
   }
@@ -168,7 +198,7 @@ function playRef(fromTime = 0) {
   if (audioCtx.state === 'suspended') audioCtx.resume();
 
   if (refSourceNode) {
-    try { refSourceNode.stop(); } catch (e) {}
+    try { refSourceNode.stop(); } catch (e) { console.warn('Ref stop:', e.message); }
     refSourceNode.disconnect();
   }
 
@@ -258,7 +288,7 @@ playBtn.addEventListener('click', () => {
   if (refActive) {
     if (isPlaying) {
       pausedAt = getCurrentTimeRef();
-      if (refSourceNode) { try { refSourceNode.stop(); } catch (e) {} refSourceNode.disconnect(); refSourceNode = null; }
+      if (refSourceNode) { try { refSourceNode.stop(); } catch (e) { console.warn('Ref stop:', e.message); } refSourceNode.disconnect(); refSourceNode = null; }
       isPlaying = false;
       playBtn.innerHTML = '&#9654;';
       playBtn.setAttribute('aria-label', 'Play');
@@ -277,7 +307,7 @@ seekBar.addEventListener('input', () => {
     const t = (seekBar.value / 1000) * dur;
     updateSeekDisplay(t, dur);
     if (isPlaying) {
-      if (refSourceNode) { try { refSourceNode.stop(); } catch (e) {} refSourceNode.disconnect(); refSourceNode = null; }
+      if (refSourceNode) { try { refSourceNode.stop(); } catch (e) { console.warn('Ref stop:', e.message); } refSourceNode.disconnect(); refSourceNode = null; }
       isPlaying = false;
       playRef(t);
     } else {
@@ -288,6 +318,7 @@ seekBar.addEventListener('input', () => {
   const dur = getActiveDuration();
   const t = (seekBar.value / 1000) * dur;
   updateSeekDisplay(t, dur);
+  seekBar.setAttribute('aria-valuetext', `${fmt(t)} of ${fmt(dur)}`);
   if (isPlaying) {
     stop();
     play(t);
@@ -298,12 +329,14 @@ seekBar.addEventListener('input', () => {
 
 volumeBar.addEventListener('input', () => {
   if (gainNode) gainNode.gain.value = volumeBar.value / 100;
+  volumeBar.setAttribute('aria-valuetext', `${volumeBar.value}%`);
 });
 
 // ─── Reveal ──────────────────────────────────────────────────
 
 revealBtn.addEventListener('click', () => {
   if (revealed) return;
+  if (!confirm('Reveal file names? This ends the blind test and cannot be undone.')) return;
   revealed = true;
   revealBtn.textContent = 'Revealed!';
   revealBtn.disabled = true;
@@ -337,6 +370,11 @@ revealBtn.addEventListener('click', () => {
 // ─── Reshuffle ───────────────────────────────────────────────
 
 reshuffleBtn.addEventListener('click', () => {
+  // Confirm if user has notes or is mid-playback
+  const hasNotes = [...document.querySelectorAll('.note-input')].some(i => i.value.trim());
+  if (isPlaying || hasNotes) {
+    if (!confirm('Reshuffling will reset playback and re-randomize mixes. Continue?')) return;
+  }
   // Store the locked pick's file index before reshuffling
   if (lockedBtnIndex >= 0) {
     firstPickFileIndex = lockedFileIndex;
@@ -368,13 +406,27 @@ reshuffleBtn.addEventListener('click', () => {
   loopEndMarker.style.display = 'none';
   seekLoopRegion.style.display = 'none';
 
-  waveformVisible = true;
-  waveformContainer.classList.remove('hidden');
-  waveformToggle.textContent = 'Hide';
-  waveformToggle.setAttribute('aria-pressed', 'true');
-  waveformToggle.classList.add('active');
+  waveformVisible = false;
+  waveformContainer.classList.add('hidden');
+  waveformContainer.setAttribute('aria-hidden', 'true');
+  waveformToggle.textContent = 'Show';
+  waveformToggle.setAttribute('aria-pressed', 'false');
+  waveformToggle.classList.remove('active');
+
+  // Reset notes toggle to collapsed
+  notesToggle.classList.remove('active');
+  notesToggle.setAttribute('aria-pressed', 'false');
+  noteRows.style.display = 'none';
 
   buildUI();
+});
+
+// ─── Notes toggle ─────────────────────────────────────────────
+
+notesToggle.addEventListener('click', () => {
+  const expanded = notesToggle.classList.toggle('active');
+  notesToggle.setAttribute('aria-pressed', String(expanded));
+  noteRows.style.display = expanded ? '' : 'none';
 });
 
 // ─── Keyboard shortcuts ──────────────────────────────────────
@@ -401,4 +453,12 @@ document.addEventListener('keydown', e => {
 durationDismiss.addEventListener('click', () => {
   durationWarning.style.display = 'none';
   sessionStorage.setItem('durationWarningDismissed', '1');
+  // Show Start Listening if files are ready (user chose to proceed despite mismatch)
+  const readyCount = fileStates.filter(f => f.status === 'ready').length;
+  if (readyCount >= 2) {
+    fileSummary.textContent = `All ${readyCount} files ready \u2014 pick a mix to start`;
+    fileSummary.classList.add('all-ready');
+    startListenBtn.style.display = 'inline-block';
+    restartBtn.style.display = 'none';
+  }
 });

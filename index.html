@@ -6,33 +6,36 @@
 <title>Blind Listen</title>
 <style>
   :root {
-    --bg-base:        #09090f;
-    --bg-surface:     #0f0f1a;
-    --bg-elevated:    #141428;
-    --bg-hover:       #1a1a34;
-    --accent:         #6366f1;
-    --accent-dim:     #3d3f8f;
-    --accent-glow:    rgba(99, 102, 241, 0.22);
+    --bg-base:        #0a0a10;
+    --bg-surface:     #10101c;
+    --bg-elevated:    #16162a;
+    --bg-hover:       #1c1c36;
+    --bg-active:      #1a2e3d;
+    --accent:         #14b8a6;
+    --accent-dim:     #0d7a6f;
+    --accent-glow:    rgba(20, 184, 166, 0.22);
     --success:        #22c55e;
     --success-dim:    rgba(34, 197, 94, 0.15);
     --warning:        #f59e0b;
     --warning-dim:    rgba(245, 158, 11, 0.15);
     --error:          #ef4444;
     --error-dim:      rgba(239, 68, 68, 0.15);
+    --favorite:       #d97706;
+    --favorite-dim:   rgba(217, 119, 6, 0.15);
     --text-primary:   #f0f0f5;
     --text-secondary: #9494aa;
     --text-muted:     #4a4a60;
     --border:         #1e1e30;
     --border-subtle:  #161625;
-    --border-active:  #6366f1;
+    --border-active:  #14b8a6;
     --radius-sm:  6px;
     --radius-md:  10px;
     --radius-lg:  16px;
     --radius-xl:  20px;
     --transition-fast: 0.12s ease;
     --transition-base: 0.2s ease;
-    --waveform-fill:  rgba(99, 102, 241, 0.35);
-    --waveform-line:  rgba(99, 102, 241, 0.7);
+    --waveform-fill:  rgba(20, 184, 166, 0.35);
+    --waveform-line:  rgba(20, 184, 166, 0.7);
     --loop-start:     rgba(34, 197, 94, 0.8);
     --loop-end:       rgba(245, 158, 11, 0.8);
     --playhead:       #f0f0f5;
@@ -40,10 +43,25 @@
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    white-space: nowrap;
+    border: 0;
+  }
+
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-    background: #0a0a0f;
-    color: #e0e0e0;
+    background: var(--bg-base);
+    color: var(--text-primary);
     min-height: 100vh;
     display: flex;
     flex-direction: column;
@@ -60,14 +78,22 @@
   }
 
   .subtitle {
-    color: #666;
+    color: var(--text-secondary);
     font-size: 0.85rem;
     margin-bottom: 2rem;
+  }
+  .subtitle--compact {
+    margin-bottom: 0;
+  }
+  .upload-filetypes {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.5rem;
   }
 
   /* Upload area */
   .upload-zone {
-    border: 2px dashed #2a2a3a;
+    border: 2px dashed var(--border);
     border-radius: 12px;
     padding: 2.5rem 3rem;
     text-align: center;
@@ -80,10 +106,10 @@
 
   .upload-zone:hover, .upload-zone.dragover {
     border-color: var(--accent);
-    background: #12121f;
+    background: var(--bg-surface);
   }
 
-  .upload-zone p { color: #888; font-size: 0.9rem; }
+  .upload-zone p { color: var(--text-secondary); font-size: 0.9rem; }
   .upload-zone .icon { font-size: 2rem; margin-bottom: 0.5rem; }
 
   /* Player section */
@@ -91,7 +117,7 @@
     display: none;
     flex-direction: column;
     align-items: center;
-    gap: 1.5rem;
+    gap: 1rem;
     width: 100%;
     max-width: 560px;
   }
@@ -101,6 +127,8 @@
   /* Switch buttons */
   .mix-buttons {
     display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
     gap: 0.75rem;
   }
 
@@ -108,9 +136,9 @@
     width: 100px;
     height: 100px;
     border-radius: 16px;
-    border: 2px solid #2a2a3a;
-    background: #111118;
-    color: #ccc;
+    border: 2px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text-primary);
     font-size: 1.8rem;
     font-weight: 700;
     cursor: pointer;
@@ -121,19 +149,19 @@
     user-select: none;
   }
 
-  .mix-btn:hover { border-color: var(--accent); background: #16162a; }
+  .mix-btn:hover { border-color: var(--accent); background: var(--bg-hover); }
 
   .mix-btn.active {
     border-color: var(--accent);
-    background: #1e1e45;
-    color: #fff;
+    background: var(--bg-active);
+    color: var(--text-primary);
     box-shadow: 0 0 24px var(--accent-glow);
   }
 
   .mix-btn.revealed { font-size: 0.75rem; line-height: 1.3; padding: 0.5rem; text-align: center; word-break: break-word; }
 
   .mix-hint {
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     color: var(--text-muted);
     text-align: center;
   }
@@ -141,28 +169,33 @@
   /* Session timer */
   .session-timer { text-align: right; position: relative; }
   .timer-label {
-    font-size: 0.65rem;
+    font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--text-muted);
     margin-bottom: 0.1rem;
   }
   .timer-tooltip-icon {
-    display: inline-block;
-    width: 14px;
-    height: 14px;
-    line-height: 14px;
-    font-size: 0.55rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    font-size: 0.72rem;
     text-align: center;
     border-radius: 50%;
     border: 1px solid var(--text-muted);
+    background: none;
     color: var(--text-muted);
     cursor: help;
     vertical-align: middle;
     margin-left: 0.25rem;
     position: relative;
+    padding: 0;
+    font-family: inherit;
   }
-  .timer-tooltip-icon:hover::after {
+  .timer-tooltip-icon:hover::after,
+  .timer-tooltip-icon:focus::after {
     content: attr(data-tooltip);
     position: absolute;
     right: 0;
@@ -191,7 +224,7 @@
   .timer-value.warning { color: var(--warning); }
   .timer-value.critical { color: var(--error); }
   .timer-badge {
-    font-size: 0.65rem;
+    font-size: 0.72rem;
     background: var(--warning-dim);
     color: var(--warning);
     border-radius: 4px;
@@ -202,6 +235,12 @@
   .timer-badge.visible { display: inline-block; }
 
   /* Player header row */
+  .player-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    margin: 0;
+  }
   .player-header {
     width: 100%;
     display: flex;
@@ -235,10 +274,24 @@
     font-family: inherit;
   }
   .toggle-btn:hover { border-color: var(--accent-dim); color: var(--text-primary); }
+  .toggle-btn-group {
+    display: flex;
+    gap: 0.4rem;
+  }
   .toggle-btn.active {
     border-color: var(--accent);
     color: var(--accent);
-    background: rgba(99, 102, 241, 0.1);
+    background: rgba(20, 184, 166, 0.1);
+  }
+  #notesToggle::after {
+    content: '\25B6';
+    display: inline-block;
+    font-size: 0.55rem;
+    margin-left: 0.4rem;
+    transition: transform var(--transition-fast);
+  }
+  #notesToggle.active::after {
+    transform: rotate(90deg);
   }
 
   .waveform-container {
@@ -251,6 +304,29 @@
     overflow: hidden;
   }
   .waveform-container.hidden { display: none; }
+
+  .spectrogram-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    z-index: 2;
+  }
+  .spectrogram-loading span::after {
+    content: '';
+    animation: pulse-dots 1.4s infinite steps(4, end);
+  }
+  @keyframes pulse-dots {
+    0%   { content: ''; }
+    25%  { content: '.'; }
+    50%  { content: '..'; }
+    75%  { content: '...'; }
+    100% { content: ''; }
+  }
   .waveform-container canvas {
     display: block;
     width: 100%;
@@ -269,7 +345,7 @@
     position: absolute;
     top: 0;
     bottom: 0;
-    background: rgba(99, 102, 241, 0.12);
+    background: rgba(20, 184, 166, 0.12);
     border-left: 2px solid var(--loop-start);
     border-right: 2px solid var(--loop-end);
     pointer-events: none;
@@ -319,7 +395,7 @@
     flex-shrink: 0;
   }
 
-  .play-btn:hover { border-color: var(--accent); background: rgba(99, 102, 241, 0.12); }
+  .play-btn:hover { border-color: var(--accent); background: rgba(20, 184, 166, 0.12); }
 
   .seek-bar-wrapper {
     flex: 1;
@@ -344,8 +420,8 @@
 
   .seek-bar::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 16px;
-    height: 16px;
+    width: 22px;
+    height: 22px;
     border-radius: 50%;
     background: var(--text-primary);
     border: 2px solid var(--accent);
@@ -355,11 +431,26 @@
 
   .seek-bar::-webkit-slider-thumb:active { transform: scale(1.25); }
 
+  .seek-bar::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--text-primary);
+    border: 2px solid var(--accent);
+    cursor: pointer;
+  }
+
+  .seek-bar::-moz-range-track {
+    height: 5px;
+    border-radius: 3px;
+    background: var(--border);
+  }
+
   .seek-loop-region {
     position: absolute;
     top: -6px;
     height: 17px;
-    background: rgba(99, 102, 241, 0.12);
+    background: rgba(20, 184, 166, 0.12);
     border: 1.5px solid var(--accent-dim);
     border-radius: 4px;
     pointer-events: none;
@@ -370,7 +461,7 @@
   .seek-time-row {
     display: flex;
     justify-content: space-between;
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     color: var(--text-muted);
     font-variant-numeric: tabular-nums;
     padding: 0 2px;
@@ -416,7 +507,7 @@
   .loop-toggle-btn.active {
     border-color: var(--accent);
     color: var(--accent);
-    background: rgba(99, 102, 241, 0.1);
+    background: rgba(20, 184, 166, 0.1);
   }
   .loop-body {
     display: flex;
@@ -432,7 +523,7 @@
     min-width: 90px;
   }
   .loop-input-label {
-    font-size: 0.65rem;
+    font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--text-muted);
@@ -473,7 +564,7 @@
   }
   .reroll-btn:hover { border-color: var(--accent-dim); color: var(--text-primary); }
   .loop-duration-hint {
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     color: var(--text-muted);
   }
 
@@ -483,10 +574,10 @@
     align-items: center;
     gap: 0.5rem;
     width: 100%;
-    max-width: 200px;
+    max-width: 360px;
   }
 
-  .volume-label { font-size: 0.85rem; color: #666; }
+  .volume-label { font-size: 0.85rem; color: var(--text-secondary); }
 
   .volume-bar {
     flex: 1;
@@ -494,18 +585,33 @@
     appearance: none;
     height: 4px;
     border-radius: 2px;
-    background: #1e1e2e;
+    background: var(--border);
     outline: none;
     cursor: pointer;
   }
 
   .volume-bar::-webkit-slider-thumb {
     -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  .volume-bar::-moz-range-thumb {
     width: 12px;
     height: 12px;
     border-radius: 50%;
-    background: #888;
+    background: var(--text-secondary);
+    border: none;
     cursor: pointer;
+  }
+
+  .volume-bar::-moz-range-track {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
   }
 
   /* Notes */
@@ -514,12 +620,6 @@
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
-  }
-
-  .notes-section h3 {
-    font-size: 0.85rem;
-    color: #666;
-    font-weight: 500;
   }
 
   .note-row {
@@ -532,16 +632,16 @@
     font-weight: 700;
     font-size: 1rem;
     min-width: 24px;
-    color: #888;
+    color: var(--text-secondary);
   }
 
   .note-input {
     flex: 1;
-    background: #111118;
-    border: 1px solid #2a2a3a;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
     border-radius: 8px;
     padding: 0.5rem 0.75rem;
-    color: #e0e0e0;
+    color: var(--text-primary);
     font-size: 0.85rem;
     font-family: inherit;
     outline: none;
@@ -560,9 +660,9 @@
   .action-btn {
     padding: 0.6rem 1.5rem;
     border-radius: 8px;
-    border: 1px solid #2a2a3a;
-    background: #111118;
-    color: #ccc;
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text-primary);
     font-size: 0.85rem;
     cursor: pointer;
     transition: all 0.15s;
@@ -584,17 +684,36 @@
     cursor: not-allowed;
   }
 
+  /* Secondary area separator */
+  .secondary-separator {
+    width: 100%;
+    border-top: 1px solid var(--border-subtle);
+    padding-top: 0.75rem;
+    margin-top: 0.25rem;
+  }
+
   /* Keyboard hints */
   .hints {
     font-size: 0.7rem;
-    color: #444;
+    color: var(--text-muted);
     text-align: center;
-    margin-top: 1rem;
+    margin-top: 0.5rem;
+    width: 100%;
+  }
+  .hints summary {
+    cursor: pointer;
+    list-style: none;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+  }
+  .hints summary::-webkit-details-marker { display: none; }
+  .hints-body {
+    margin-top: 0.5rem;
   }
 
   kbd {
-    background: #1a1a2a;
-    border: 1px solid #2a2a3a;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
     border-radius: 3px;
     padding: 0.1em 0.4em;
     font-family: inherit;
@@ -683,7 +802,12 @@
     color: var(--text-muted);
     font-size: 1rem;
     cursor: pointer;
-    padding: 0 0.2rem;
+    padding: 0.5rem;
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
     line-height: 1;
     transition: color var(--transition-fast);
@@ -776,7 +900,7 @@
     flex-shrink: 0;
   }
   .privacy-footer p {
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     color: var(--text-muted);
     text-align: center;
   }
@@ -793,13 +917,13 @@
     min-width: 80px;
   }
   .mix-stat-label {
-    font-size: 0.65rem;
+    font-size: 0.72rem;
     font-weight: 700;
     color: var(--text-muted);
     margin-bottom: 0.15rem;
   }
   .mix-stat-values {
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     color: var(--text-secondary);
     font-variant-numeric: tabular-nums;
     line-height: 1.4;
@@ -807,13 +931,6 @@
   .mix-stat-values span { display: block; }
 
   /* Level match */
-  .level-match-row {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    width: 100%;
-    max-width: 360px;
-  }
   .level-match-btn {
     padding: 0.35rem 0.75rem;
     border-radius: var(--radius-sm);
@@ -833,7 +950,7 @@
     background: var(--success-dim);
   }
   .level-match-badge {
-    font-size: 0.65rem;
+    font-size: 0.72rem;
     background: var(--success-dim);
     color: var(--success);
     border-radius: 4px;
@@ -855,16 +972,17 @@
     border-radius: var(--radius-sm);
     color: var(--text-muted);
     font-size: 0.75rem;
-    padding: 0.15rem 0.5rem;
+    padding: 0.4rem 0.7rem;
+    min-height: 36px;
     cursor: pointer;
     transition: all var(--transition-fast);
     font-family: inherit;
   }
   .fav-btn:hover { border-color: var(--accent-dim); color: var(--text-secondary); }
   .fav-btn.favorited {
-    border-color: var(--warning);
-    color: var(--warning);
-    background: var(--warning-dim);
+    border-color: var(--favorite);
+    color: var(--favorite);
+    background: var(--favorite-dim);
   }
   .fav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
@@ -919,11 +1037,36 @@
   .ref-btn.loaded { border-style: solid; color: var(--text-secondary); }
   .ref-label { font-size: 1.2rem; font-weight: 700; }
   .ref-name {
-    font-size: 0.6rem;
+    font-size: 0.7rem;
     max-width: 90px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .ref-add-label {
+    font-size: 0.72rem;
+  }
+
+  @media (max-width: 600px) {
+    body { padding: 1rem; }
+    .player { max-width: 100%; }
+    .mix-btn { width: 72px; height: 72px; font-size: 1.4rem; border-radius: 12px; }
+    .ref-btn { width: 72px; height: 72px; border-radius: 12px; }
+    .mix-buttons { gap: 0.5rem; }
+    .loop-controls { width: 100%; }
+    .level-match-row { flex-wrap: wrap; max-width: 100%; }
+    .volume-row { max-width: 100%; }
+    .transport { gap: 0.5rem; }
+    .play-btn { width: 48px; height: 48px; }
+    .actions { flex-wrap: wrap; justify-content: center; }
+    .hints { font-size: 0.72rem; }
+  }
+
+  @media (max-width: 380px) {
+    .mix-btn { width: 56px; height: 56px; font-size: 1.1rem; }
+    .ref-btn { width: 56px; height: 56px; }
+    .action-btn { padding: 0.5rem 1rem; font-size: 0.8rem; }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -941,30 +1084,37 @@
 </head>
 <body>
 
+<main>
 <h1>Blind Listen</h1>
 <p class="subtitle">Unbiased mix comparison</p>
 
-<div class="upload-zone" id="uploadZone" role="button" aria-label="Upload audio files" tabindex="0">
-  <div class="icon">&#x1f3a7;</div>
-  <p>Drop 2-5 audio files here, or click to browse</p>
+<div class="upload-zone" id="uploadZone" role="button" tabindex="0" aria-describedby="uploadInstructions">
+  <div class="icon" aria-hidden="true">&#x1f3a7;</div>
+  <p id="uploadInstructions">Drop 2-5 audio files here, or click to browse</p>
+  <p class="upload-filetypes">WAV, MP3, FLAC, and other common formats</p>
 </div>
-<input type="file" id="fileInput" accept="audio/*" multiple style="position:absolute;opacity:0;width:0;height:0;overflow:hidden">
+<input type="file" id="fileInput" accept="audio/*" multiple aria-hidden="true" tabindex="-1" style="position:absolute;opacity:0;width:0;height:0;overflow:hidden">
 <ul class="file-list" id="fileList" aria-label="File decode status" aria-live="polite"></ul>
-<div class="file-summary" id="fileSummary"></div>
+<div class="file-summary" id="fileSummary" aria-live="polite"></div>
 <div class="warning-banner duration-warning" id="durationWarning" role="note" style="display:none">
   <span class="warning-banner-icon" aria-hidden="true">&#9888;</span>
-  <span class="warning-banner-text">These files differ in length by more than 10% &mdash; they may not be the same song.</span>
+  <span class="warning-banner-text" id="durationWarningText">These files differ in length by more than 10% &mdash; they may not be the same song.</span>
   <button class="warning-banner-dismiss" id="durationDismiss" aria-label="Dismiss">&times;</button>
+</div>
+<div style="text-align:center;width:100%;max-width:480px">
+  <button class="action-btn reveal" id="startListenBtn" style="display:none;margin-bottom:1rem">Start Listening</button>
+  <button class="action-btn" id="restartBtn" style="display:none;margin-bottom:1rem" aria-describedby="durationWarningText">Restart Session</button>
 </div>
 
 <div class="player" id="player">
   <div class="player-header">
     <div>
-      <h1 style="font-size:1.4rem;font-weight:700;letter-spacing:-0.03em">Blind Listen</h1>
-      <p class="subtitle" style="margin-bottom:0">Unbiased mix comparison</p>
+      <h2 class="player-title">Blind Listen</h2>
+      <p class="subtitle subtitle--compact">Unbiased mix comparison</p>
     </div>
-    <div class="session-timer" id="sessionTimer" aria-label="Session time remaining" aria-live="polite">
-      <div class="timer-label">Session<span class="timer-tooltip-icon" data-tooltip="After 10 minutes your session will end and your files will be deleted.">?</span></div>
+    <div class="session-timer" id="sessionTimer" aria-label="Session time remaining">
+      <div class="timer-label">Session<button class="timer-tooltip-icon" aria-label="About session timer" aria-describedby="timerTooltip" tabindex="0">?</button></div>
+      <div id="timerTooltip" role="tooltip" class="sr-only">After 10 minutes, playback will pause. Click Restart to begin a new session.</div>
       <div class="timer-value" id="timerValue">10:00</div>
       <div class="timer-badge" id="timerBadge"></div>
     </div>
@@ -974,23 +1124,24 @@
   <div class="mix-buttons" id="mixButtons"></div>
   <div class="mix-stats-row" id="mixStatsRow"></div>
   <div class="consistency-result" id="consistencyResult"></div>
-  <p class="mix-hint">Use <kbd>&larr;</kbd> <kbd>&rarr;</kbd> arrow keys to switch between mixes</p>
+  <p class="mix-hint">Click a mix or use <kbd>&larr;</kbd> <kbd>&rarr;</kbd> arrow keys to switch</p>
 
   <div class="waveform-section" id="waveformSection">
     <div class="waveform-toggle-row">
       <span class="waveform-toggle-label" id="waveformLabel">Waveform</span>
-      <div style="display:flex;gap:0.4rem">
+      <div class="toggle-btn-group">
         <button class="toggle-btn" id="spectrogramToggle" aria-pressed="false">Spectrogram</button>
         <button class="toggle-btn active" id="waveformToggle" aria-pressed="true">Hide</button>
       </div>
     </div>
-    <div class="waveform-container" id="waveformContainer" aria-hidden="false">
+    <div class="waveform-container" id="waveformContainer" aria-label="Audio waveform visualization. Use the seek bar below for keyboard control." aria-hidden="false">
       <canvas id="waveformCanvas"></canvas>
       <canvas id="spectrogramCanvas" style="display:none"></canvas>
+      <div id="spectrogramLoading" class="spectrogram-loading" style="display:none"><span>Computing spectrogram</span></div>
       <div class="waveform-playhead" id="waveformPlayhead"></div>
       <div class="loop-region" id="loopRegion"></div>
-      <div class="loop-marker-handle start" id="loopStartMarker">&#9654;</div>
-      <div class="loop-marker-handle end" id="loopEndMarker">&#9664;</div>
+      <div class="loop-marker-handle start" id="loopStartMarker" aria-hidden="true" tabindex="-1">&#9654;</div>
+      <div class="loop-marker-handle end" id="loopEndMarker" aria-hidden="true" tabindex="-1">&#9664;</div>
     </div>
   </div>
 
@@ -998,13 +1149,15 @@
     <button class="play-btn" id="playBtn" aria-label="Play">&#9654;</button>
     <div class="seek-bar-wrapper">
       <div class="seek-loop-region" id="seekLoopRegion"></div>
-      <input type="range" class="seek-bar" id="seekBar" min="0" max="1000" value="0" aria-label="Playback position">
+      <input type="range" class="seek-bar" id="seekBar" min="0" max="1000" value="0" aria-label="Playback position" aria-valuetext="0:00 of 0:00">
       <div class="seek-time-row" aria-hidden="true">
         <span id="timeElapsed">0:00</span>
         <span id="timeDuration">0:00</span>
       </div>
     </div>
   </div>
+
+  <div class="secondary-separator"></div>
 
   <span class="loop-title">Loop</span>
   <div class="loop-controls" id="loopControls">
@@ -1019,29 +1172,28 @@
         <label class="loop-input-label" for="loopEndInput">End</label>
         <input class="loop-time-input" id="loopEndInput" type="text" value="0:00">
       </div>
-      <button class="reroll-btn" id="rerollBtn" aria-label="Randomize loop section">&#x1F3B2; Re-roll</button>
+      <button class="reroll-btn" id="rerollBtn" aria-label="Randomize loop section">Re-roll</button>
     </div>
     <div class="loop-duration-hint" id="loopHint" style="display:none"></div>
   </div>
 
-  <div class="level-match-row">
-    <div class="volume-row">
-      <span class="volume-label">Vol</span>
-      <input type="range" class="volume-bar" id="volumeBar" min="0" max="100" value="80" aria-label="Volume">
-    </div>
+  <div class="volume-row">
+    <span class="volume-label">Vol</span>
+    <input type="range" class="volume-bar" id="volumeBar" min="0" max="100" value="80" aria-label="Volume" aria-valuetext="80%">
     <button class="level-match-btn" id="levelMatchBtn" aria-pressed="false">Level Match</button>
     <span class="level-match-badge" id="levelMatchBadge">Matched</span>
   </div>
 
   <div class="notes-section">
-    <h3>Notes (jot thoughts before revealing)</h3>
-    <div id="noteRows"></div>
+    <button class="toggle-btn" id="notesToggle" aria-pressed="false" aria-controls="noteRows">Notes</button>
+    <div id="noteRows" style="display:none"></div>
   </div>
 
   <div class="actions">
-    <button class="action-btn" id="reshuffleBtn" aria-label="Reshuffle mix assignments">Reshuffle</button>
-    <button class="action-btn reveal" id="revealBtn" aria-label="Reveal which file is which">Reveal</button>
+    <button class="action-btn" id="reshuffleBtn" aria-label="Re-randomize mix assignments to test your pick">Reshuffle</button>
+    <button class="action-btn reveal" id="revealBtn" title="Ends the blind test permanently" aria-label="Reveal which file is which">Reveal</button>
   </div>
+  <p class="mix-hint" id="reshuffleHint" style="display:none"></p>
 
   <div class="actions" id="exportActions" style="display:none">
     <button class="action-btn" id="exportCopyBtn" aria-label="Copy results to clipboard">Copy Text</button>
@@ -1049,22 +1201,29 @@
     <button class="action-btn" id="exportPdfBtn" aria-label="Download results as PDF">Download PDF</button>
   </div>
 
-  <div class="hints">
-    <kbd>&larr;</kbd> <kbd>&rarr;</kbd> switch &nbsp;&middot;&nbsp;
-    <kbd>0</kbd> ref &nbsp;&middot;&nbsp;
-    <kbd>Space</kbd> play/pause &nbsp;&middot;&nbsp;
-    <kbd>L</kbd> loop &nbsp;&middot;&nbsp;
-    <kbd>M</kbd> level match &nbsp;&middot;&nbsp;
-    <kbd>R</kbd> reveal
-  </div>
+  <details class="hints">
+    <summary>Keyboard shortcuts</summary>
+    <div class="hints-body">
+      <kbd>&larr;</kbd> <kbd>&rarr;</kbd> switch &nbsp;&middot;&nbsp;
+      <kbd>0</kbd> ref &nbsp;&middot;&nbsp;
+      <kbd>Space</kbd> play/pause &nbsp;&middot;&nbsp;
+      <kbd>L</kbd> loop &nbsp;&middot;&nbsp;
+      <kbd>M</kbd> level match &nbsp;&middot;&nbsp;
+      <kbd>R</kbd> reveal
+    </div>
+  </details>
 </div>
+</main>
 
-<div class="privacy-footer">
+<div id="srAnnouncer" role="status" aria-live="polite" class="sr-only"></div>
+
+<footer class="privacy-footer">
   <span class="privacy-dot"></span>
   <p>Files stay in your browser &mdash; nothing is uploaded to any server.</p>
-</div>
+</footer>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
+<!-- Web Worker: js/spectrogram-worker.js (loaded via new Worker(), not a script tag) -->
 <script src="js/app.js"></script>
 <script src="js/audio-engine.js"></script>
 <script src="js/waveform.js"></script>

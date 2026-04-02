@@ -73,6 +73,18 @@ exportCopyBtn.addEventListener('click', () => {
     const orig = exportCopyBtn.textContent;
     exportCopyBtn.textContent = 'Copied!';
     setTimeout(() => { exportCopyBtn.textContent = orig; }, 1500);
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    const orig = exportCopyBtn.textContent;
+    exportCopyBtn.textContent = 'Copied!';
+    setTimeout(() => { exportCopyBtn.textContent = orig; }, 1500);
   });
 });
 

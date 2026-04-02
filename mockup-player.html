@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blind Listen — Player Mockup</title>
+<style>
+  :root {
+    --bg-base:        #0a0a10;
+    --bg-surface:     #10101c;
+    --bg-elevated:    #16162a;
+    --bg-hover:       #1c1c36;
+    --bg-active:      #1a2e3d;
+    --accent:         #14b8a6;
+    --accent-dim:     #0d7a6f;
+    --accent-glow:    rgba(20, 184, 166, 0.22);
+    --success:        #22c55e;
+    --success-dim:    rgba(34, 197, 94, 0.15);
+    --warning:        #f59e0b;
+    --warning-dim:    rgba(245, 158, 11, 0.15);
+    --error:          #ef4444;
+    --error-dim:      rgba(239, 68, 68, 0.15);
+    --favorite:       #d97706;
+    --favorite-dim:   rgba(217, 119, 6, 0.15);
+    --text-primary:   #f0f0f5;
+    --text-secondary: #9494aa;
+    --text-muted:     #4a4a60;
+    --border:         #1e1e30;
+    --border-subtle:  #161625;
+    --border-active:  #14b8a6;
+    --radius-sm:  6px;
+    --radius-md:  10px;
+    --radius-lg:  16px;
+    --radius-xl:  20px;
+    --transition-fast: 0.12s ease;
+    --transition-base: 0.2s ease;
+    --waveform-fill:  rgba(20, 184, 166, 0.35);
+    --waveform-line:  rgba(20, 184, 166, 0.7);
+    --loop-start:     rgba(34, 197, 94, 0.8);
+    --loop-end:       rgba(245, 158, 11, 0.8);
+    --playhead:       #f0f0f5;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg-base);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+  }
+
+  .subtitle { color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 2rem; }
+  .subtitle--compact { margin-bottom: 0; }
+
+  .player {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+    max-width: 560px;
+  }
+
+  .mix-buttons { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.75rem; }
+
+  .mix-btn {
+    width: 100px; height: 100px; border-radius: 16px;
+    border: 2px solid var(--border); background: var(--bg-surface);
+    color: var(--text-primary); font-size: 1.8rem; font-weight: 700;
+    cursor: pointer; transition: all 0.15s;
+    display: flex; align-items: center; justify-content: center; user-select: none;
+  }
+  .mix-btn:hover { border-color: var(--accent); background: var(--bg-hover); }
+  .mix-btn.active {
+    border-color: var(--accent); background: var(--bg-active);
+    color: var(--text-primary); box-shadow: 0 0 24px var(--accent-glow);
+  }
+
+  .mix-hint { font-size: 0.75rem; color: var(--text-muted); text-align: center; }
+
+  .session-timer { text-align: right; position: relative; }
+  .timer-label {
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--text-muted); margin-bottom: 0.1rem;
+  }
+  .timer-tooltip-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; font-size: 0.72rem; text-align: center;
+    border-radius: 50%; border: 1px solid var(--text-muted);
+    background: none; color: var(--text-muted); cursor: help;
+    vertical-align: middle; margin-left: 0.25rem; position: relative;
+    padding: 0; font-family: inherit;
+  }
+  .timer-value {
+    font-size: 1.2rem; font-weight: 700; font-variant-numeric: tabular-nums;
+    color: var(--text-secondary); letter-spacing: 0.02em;
+  }
+
+  .player-title { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.03em; margin: 0; }
+  .player-header {
+    width: 100%; display: flex; justify-content: space-between; align-items: flex-start;
+  }
+
+  .waveform-section { width: 100%; margin-bottom: 0; }
+  .waveform-toggle-row {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;
+  }
+  .waveform-toggle-label {
+    font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .toggle-btn {
+    padding: 0.3rem 0.75rem; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--bg-elevated);
+    color: var(--text-secondary); font-size: 0.72rem; cursor: pointer;
+    transition: all var(--transition-fast); font-family: inherit;
+  }
+  .toggle-btn-group { display: flex; gap: 0.4rem; }
+  .toggle-btn:hover { border-color: var(--accent-dim); color: var(--text-primary); }
+  .toggle-btn.active {
+    border-color: var(--accent); color: var(--accent); background: rgba(20, 184, 166, 0.1);
+  }
+  #notesToggle::after {
+    content: '\25B6'; display: inline-block; font-size: 0.55rem;
+    margin-left: 0.4rem; transition: transform var(--transition-fast);
+  }
+  #notesToggle.active::after { transform: rotate(90deg); }
+
+  .waveform-container {
+    width: 100%; height: 72px; background: var(--bg-surface);
+    border: 1px solid var(--border); border-radius: var(--radius-md);
+    position: relative; overflow: hidden;
+  }
+  .waveform-container canvas { display: block; width: 100%; height: 100%; }
+  .waveform-playhead {
+    position: absolute; top: 0; bottom: 0; width: 2px;
+    background: var(--playhead); left: 35%; pointer-events: none;
+  }
+
+  .transport { display: flex; align-items: center; gap: 0.85rem; width: 100%; }
+  .play-btn {
+    width: 52px; height: 52px; border-radius: 50%;
+    border: 2px solid var(--border); background: var(--bg-elevated);
+    color: var(--text-primary); font-size: 1.1rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all var(--transition-fast); flex-shrink: 0;
+  }
+  .play-btn:hover { border-color: var(--accent); background: rgba(20, 184, 166, 0.12); }
+
+  .seek-bar-wrapper { flex: 1; display: flex; flex-direction: column; gap: 0.25rem; }
+  .seek-bar {
+    width: 100%; -webkit-appearance: none; appearance: none;
+    height: 5px; border-radius: 3px;
+    background: linear-gradient(to right, var(--accent) 0%, var(--accent) 35%, var(--border) 35%, var(--border) 100%);
+    outline: none; cursor: pointer;
+  }
+  .seek-bar::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%;
+    background: var(--text-primary); border: 2px solid var(--accent); cursor: pointer;
+  }
+  .seek-time-row {
+    display: flex; justify-content: space-between; font-size: 0.75rem;
+    color: var(--text-muted); font-variant-numeric: tabular-nums; padding: 0 2px;
+  }
+
+  .loop-controls {
+    width: fit-content; align-self: flex-start; padding: 0.85rem;
+    background: var(--bg-surface); border: 1px solid var(--border);
+    border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 0.75rem;
+  }
+  .loop-title {
+    display: block; width: 100%; font-size: 0.72rem; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: -1rem;
+  }
+  .loop-toggle-btn {
+    padding: 0.3rem 0.75rem; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--bg-elevated);
+    color: var(--text-secondary); font-size: 0.75rem; cursor: pointer;
+    transition: all var(--transition-fast); font-family: inherit;
+  }
+
+  .secondary-separator {
+    width: 100%; border-top: 1px solid var(--border-subtle);
+    padding-top: 0.75rem; margin-top: 0.25rem;
+  }
+
+  .volume-row {
+    display: flex; align-items: center; gap: 0.5rem; width: 100%; max-width: 360px;
+  }
+  .volume-label { font-size: 0.85rem; color: var(--text-secondary); }
+  .volume-bar {
+    flex: 1; -webkit-appearance: none; appearance: none;
+    height: 4px; border-radius: 2px; background: var(--border); outline: none; cursor: pointer;
+  }
+  .volume-bar::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 20px; height: 20px;
+    border-radius: 50%; background: var(--text-secondary); cursor: pointer;
+  }
+
+  .level-match-btn {
+    padding: 0.35rem 0.75rem; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--bg-elevated);
+    color: var(--text-secondary); font-size: 0.75rem; cursor: pointer;
+    transition: all var(--transition-fast); font-family: inherit; white-space: nowrap;
+  }
+  .level-match-btn.active {
+    border-color: var(--success); color: var(--success); background: var(--success-dim);
+  }
+  .level-match-badge {
+    font-size: 0.72rem; background: var(--success-dim); color: var(--success);
+    border-radius: 4px; padding: 0.1rem 0.4rem;
+  }
+
+  .notes-section { width: 100%; display: flex; flex-direction: column; gap: 0.75rem; }
+  .note-row { display: flex; align-items: center; gap: 0.75rem; }
+  .note-label { font-weight: 700; font-size: 1rem; min-width: 24px; color: var(--text-secondary); }
+  .note-input {
+    flex: 1; background: var(--bg-surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 0.5rem 0.75rem; color: var(--text-primary);
+    font-size: 0.85rem; font-family: inherit; outline: none;
+  }
+
+  .actions { display: flex; gap: 0.75rem; margin-top: 0.5rem; }
+  .action-btn {
+    padding: 0.6rem 1.5rem; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg-surface); color: var(--text-primary); font-size: 0.85rem;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .action-btn:hover { border-color: var(--accent); color: #fff; }
+  .action-btn.reveal {
+    background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600;
+  }
+
+  .hints {
+    font-size: 0.7rem; color: var(--text-muted); text-align: center;
+    margin-top: 0.5rem; width: 100%;
+  }
+  .hints summary { cursor: pointer; list-style: none; color: var(--text-muted); font-size: 0.7rem; }
+  .hints summary::-webkit-details-marker { display: none; }
+  .hints-body { margin-top: 0.5rem; }
+
+  kbd {
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: 3px; padding: 0.1em 0.4em; font-family: inherit; font-size: 0.7rem;
+  }
+
+  .mix-btn-wrapper { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; }
+  .fav-btn {
+    background: none; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    color: var(--text-muted); font-size: 0.75rem; padding: 0.4rem 0.7rem;
+    min-height: 36px; cursor: pointer; transition: all var(--transition-fast); font-family: inherit;
+  }
+  .fav-btn.favorited {
+    border-color: var(--favorite); color: var(--favorite); background: var(--favorite-dim);
+  }
+
+  .ref-btn {
+    width: 100px; height: 100px; border-radius: 16px;
+    border: 2px dashed var(--border); background: var(--bg-surface);
+    color: var(--text-muted); font-size: 0.75rem; font-weight: 600;
+    cursor: pointer; transition: all 0.15s;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 0.25rem; user-select: none;
+  }
+  .ref-label { font-size: 1.2rem; font-weight: 700; }
+  .ref-add-label { font-size: 0.72rem; }
+
+  .mix-stats-row { display: flex; gap: 0.75rem; width: 100%; justify-content: center; }
+  .mix-stat { text-align: center; min-width: 80px; }
+  .mix-stat-label { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.15rem; }
+  .mix-stat-values { font-size: 0.75rem; color: var(--text-secondary); font-variant-numeric: tabular-nums; line-height: 1.4; }
+  .mix-stat-values span { display: block; }
+
+  .privacy-footer {
+    margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-subtle);
+    display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+    width: 100%; max-width: 560px;
+  }
+  .privacy-dot { width: 6px; height: 6px; border-radius: 3px; background: var(--success); flex-shrink: 0; }
+  .privacy-footer p { font-size: 0.75rem; color: var(--text-muted); text-align: center; }
+
+  @media (max-width: 600px) {
+    body { padding: 1rem; }
+    .player { max-width: 100%; }
+    .mix-btn { width: 72px; height: 72px; font-size: 1.4rem; border-radius: 12px; }
+    .ref-btn { width: 72px; height: 72px; border-radius: 12px; }
+    .mix-buttons { gap: 0.5rem; }
+    .volume-row { max-width: 100%; }
+    .transport { gap: 0.5rem; }
+    .play-btn { width: 48px; height: 48px; }
+    .actions { flex-wrap: wrap; justify-content: center; }
+  }
+</style>
+</head>
+<body>
+
+<div class="player">
+  <div class="player-header">
+    <div>
+      <h2 class="player-title">Comparing 3 mixes</h2>
+      <p class="subtitle subtitle--compact">Unbiased mix comparison</p>
+    </div>
+    <div class="session-timer">
+      <div class="timer-label">Session <span class="timer-tooltip-icon">?</span></div>
+      <div class="timer-value">7:42</div>
+    </div>
+  </div>
+
+  <div class="mix-buttons">
+    <div class="mix-btn-wrapper">
+      <button class="mix-btn active">X</button>
+      <button class="fav-btn favorited">&starf; Pick</button>
+    </div>
+    <div class="mix-btn-wrapper">
+      <button class="mix-btn">Y</button>
+      <button class="fav-btn">&star; Pick</button>
+    </div>
+    <div class="mix-btn-wrapper">
+      <button class="mix-btn">Z</button>
+      <button class="fav-btn">&star; Pick</button>
+    </div>
+    <div class="mix-btn-wrapper">
+      <button class="ref-btn">
+        <span class="ref-label">REF</span>
+        <span class="ref-add-label">+ Add</span>
+      </button>
+      <div style="height:36px"></div>
+    </div>
+  </div>
+
+  <div class="mix-stats-row">
+    <div class="mix-stat">
+      <div class="mix-stat-label">LUFS</div>
+      <div class="mix-stat-values"><span>X: -14.2</span><span>Y: -12.8</span><span>Z: -13.5</span></div>
+    </div>
+    <div class="mix-stat">
+      <div class="mix-stat-label">PEAK</div>
+      <div class="mix-stat-values"><span>X: -1.2 dB</span><span>Y: -0.3 dB</span><span>Z: -0.8 dB</span></div>
+    </div>
+    <div class="mix-stat">
+      <div class="mix-stat-label">RMS</div>
+      <div class="mix-stat-values"><span>X: -16.4</span><span>Y: -14.9</span><span>Z: -15.7</span></div>
+    </div>
+  </div>
+
+  <p class="mix-hint">Click a mix or use <kbd>&larr;</kbd> <kbd>&rarr;</kbd> arrow keys to switch</p>
+
+  <div class="waveform-section">
+    <div class="waveform-toggle-row">
+      <span class="waveform-toggle-label">Waveform</span>
+      <div class="toggle-btn-group">
+        <button class="toggle-btn">Spectrogram</button>
+        <button class="toggle-btn active">Hide</button>
+      </div>
+    </div>
+    <div class="waveform-container">
+      <canvas id="waveformCanvas"></canvas>
+      <div class="waveform-playhead"></div>
+    </div>
+  </div>
+
+  <div class="transport">
+    <button class="play-btn">&#9646;&#9646;</button>
+    <div class="seek-bar-wrapper">
+      <input type="range" class="seek-bar" min="0" max="1000" value="350">
+      <div class="seek-time-row">
+        <span>1:24.3</span>
+        <span>4:02</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="secondary-separator"></div>
+
+  <span class="loop-title">Loop</span>
+  <div class="loop-controls">
+    <button class="loop-toggle-btn">Enable &mdash; <kbd>L</kbd></button>
+  </div>
+
+  <div class="volume-row">
+    <span class="volume-label">Vol</span>
+    <input type="range" class="volume-bar" min="0" max="100" value="80">
+    <button class="level-match-btn active">Level Match</button>
+    <span class="level-match-badge">Matched</span>
+  </div>
+
+  <div class="notes-section">
+    <button class="toggle-btn" id="notesToggle" onclick="this.classList.toggle('active'); document.getElementById('mockNotes').style.display = this.classList.contains('active') ? '' : 'none';">Notes</button>
+    <div id="mockNotes" style="display:none">
+      <div class="note-row">
+        <span class="note-label">X</span>
+        <input class="note-input" placeholder="Jot notes about mix X..." value="Vocals feel forward, good low end">
+      </div>
+      <div class="note-row" style="margin-top:0.5rem">
+        <span class="note-label">Y</span>
+        <input class="note-input" placeholder="Jot notes about mix Y...">
+      </div>
+      <div class="note-row" style="margin-top:0.5rem">
+        <span class="note-label">Z</span>
+        <input class="note-input" placeholder="Jot notes about mix Z..." value="Harsh high end around 3kHz">
+      </div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="action-btn">Reshuffle</button>
+    <button class="action-btn reveal" title="Ends the blind test permanently">Reveal</button>
+  </div>
+
+  <details class="hints">
+    <summary>Keyboard shortcuts</summary>
+    <div class="hints-body">
+      <kbd>&larr;</kbd> <kbd>&rarr;</kbd> switch &middot;
+      <kbd>0</kbd> ref &middot;
+      <kbd>Space</kbd> play/pause &middot;
+      <kbd>L</kbd> loop &middot;
+      <kbd>M</kbd> level match &middot;
+      <kbd>R</kbd> reveal
+    </div>
+  </details>
+</div>
+
+<footer class="privacy-footer">
+  <span class="privacy-dot"></span>
+  <p>Files stay in your browser &mdash; nothing is uploaded to any server.</p>
+</footer>
+
+<script>
+// Draw a fake waveform
+const canvas = document.getElementById('waveformCanvas');
+const ctx = canvas.getContext('2d');
+const rect = canvas.parentElement.getBoundingClientRect();
+canvas.width = rect.width * devicePixelRatio;
+canvas.height = rect.height * devicePixelRatio;
+ctx.scale(devicePixelRatio, devicePixelRatio);
+const w = rect.width, h = rect.height;
+const mid = h / 2;
+
+// Generate fake waveform data
+ctx.fillStyle = 'rgba(20, 184, 166, 0.35)';
+ctx.strokeStyle = 'rgba(20, 184, 166, 0.7)';
+ctx.lineWidth = 1;
+ctx.beginPath();
+ctx.moveTo(0, mid);
+for (let x = 0; x < w; x++) {
+  const t = x / w;
+  const envelope = 0.3 + 0.7 * Math.sin(t * Math.PI);
+  const noise = (Math.sin(x * 0.15) * 0.4 + Math.sin(x * 0.37) * 0.3 + Math.sin(x * 0.73) * 0.2 + Math.sin(x * 1.1) * 0.1);
+  const amp = envelope * noise * mid * 0.85;
+  ctx.lineTo(x, mid - amp);
+}
+for (let x = w - 1; x >= 0; x--) {
+  const t = x / w;
+  const envelope = 0.3 + 0.7 * Math.sin(t * Math.PI);
+  const noise = (Math.sin(x * 0.15) * 0.4 + Math.sin(x * 0.37) * 0.3 + Math.sin(x * 0.73) * 0.2 + Math.sin(x * 1.1) * 0.1);
+  const amp = envelope * noise * mid * 0.85;
+  ctx.lineTo(x, mid + amp);
+}
+ctx.closePath();
+ctx.fill();
+ctx.stroke();
+</script>
+</body>
+</html>

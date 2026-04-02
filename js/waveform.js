@@ -5,8 +5,6 @@ function drawWaveform(buffer) {
   const rect = waveformContainer.getBoundingClientRect();
   waveformCanvas.width = rect.width * dpr;
   waveformCanvas.height = rect.height * dpr;
-  waveformCanvas.style.width = rect.width + 'px';
-  waveformCanvas.style.height = rect.height + 'px';
 
   const ctx = waveformCanvas.getContext('2d');
   ctx.scale(dpr, dpr);
@@ -48,7 +46,74 @@ function drawWaveform(buffer) {
   ctx.stroke();
 }
 
-// ─── Spectrogram (radix-2 FFT) ───────────────────────────────
+// ─── Spectrogram (Web Worker FFT) ────────────────────────────
+
+// Lazy singleton worker — created on first use via Blob URL (works on file://)
+let _spectrogramWorker = null;
+let _spectrogramPendingIdx = null; // bufferIdx currently being computed
+const spectrogramLoading = document.getElementById('spectrogramLoading');
+
+// Worker code as string — avoids file:// cross-origin worker restrictions
+const SPECTROGRAM_WORKER_CODE = `
+self.onmessage = function(e) {
+  var data = e.data.channelData;
+  var sr = e.data.sampleRate;
+  var fftSize = e.data.fftSize;
+  var hopSize = e.data.hopSize;
+  var w = e.data.width;
+  var h = e.data.height;
+  var numFrames = Math.floor((data.length - fftSize) / hopSize);
+  if (numFrames <= 0) { self.postMessage({ pixels: null, width: w, height: h }); return; }
+  var hannWindow = new Float32Array(fftSize);
+  for (var i = 0; i < fftSize; i++) hannWindow[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (fftSize - 1)));
+  var minFreq = 20, maxFreq = Math.min(20000, sr / 2);
+  var logMin = Math.log10(minFreq), logMax = Math.log10(maxFreq);
+  var rowBins = new Float32Array(h);
+  for (var y = 0; y < h; y++) { var frac = 1 - y / h; rowBins[y] = Math.pow(10, logMin + frac * (logMax - logMin)) * fftSize / sr; }
+  var halfFFT = fftSize / 2;
+  var magnitudes = new Float32Array(numFrames * halfFFT);
+  var real = new Float32Array(fftSize), imag = new Float32Array(fftSize);
+  for (var frame = 0; frame < numFrames; frame++) {
+    var offset = frame * hopSize;
+    for (var i = 0; i < fftSize; i++) { real[i] = (offset + i < data.length) ? data[offset + i] * hannWindow[i] : 0; imag[i] = 0; }
+    for (var i = 1, j = 0; i < fftSize; i++) { var bit = fftSize >> 1; while (j & bit) { j ^= bit; bit >>= 1; } j ^= bit; if (i < j) { var tmp = real[i]; real[i] = real[j]; real[j] = tmp; tmp = imag[i]; imag[i] = imag[j]; imag[j] = tmp; } }
+    for (var len = 2; len <= fftSize; len <<= 1) { var ang = -2 * Math.PI / len, wR = Math.cos(ang), wI = Math.sin(ang); for (var i = 0; i < fftSize; i += len) { var curR = 1, curI = 0; for (var j = 0; j < len / 2; j++) { var uR = real[i+j], uI = imag[i+j]; var vR = real[i+j+len/2]*curR - imag[i+j+len/2]*curI; var vI = real[i+j+len/2]*curI + imag[i+j+len/2]*curR; real[i+j] = uR+vR; imag[i+j] = uI+vI; real[i+j+len/2] = uR-vR; imag[i+j+len/2] = uI-vI; var newCurR = curR*wR - curI*wI; curI = curR*wI + curI*wR; curR = newCurR; } } }
+    var base = frame * halfFFT;
+    for (var i = 0; i < halfFFT; i++) { var mag = Math.sqrt(real[i]*real[i] + imag[i]*imag[i]); magnitudes[base+i] = mag > 0 ? 20*Math.log10(mag/fftSize) : -120; }
+  }
+  var pixels = new Uint8ClampedArray(w * h * 4);
+  for (var x = 0; x < w; x++) {
+    var frame = Math.floor(x / w * numFrames), base = frame * halfFFT;
+    for (var y = 0; y < h; y++) {
+      var bin = rowBins[y], binLow = Math.floor(bin), binHigh = Math.min(binLow+1, halfFFT-1), frac = bin - binLow;
+      var dbVal = magnitudes[base+binLow]*(1-frac) + magnitudes[base+binHigh]*frac;
+      var norm = Math.max(0, Math.min(1, (dbVal+100)/80));
+      var idx = (y*w+x)*4;
+      if (norm < 0.33) { var t = norm/0.33; pixels[idx]=Math.floor(10*(1-t)); pixels[idx+1]=Math.floor(10*(1-t)+80*t); pixels[idx+2]=Math.floor(60*(1-t)+160*t); }
+      else if (norm < 0.66) { var t = (norm-0.33)/0.33; pixels[idx]=Math.floor(220*t); pixels[idx+1]=Math.floor(80+140*t); pixels[idx+2]=Math.floor(160*(1-t)); }
+      else { var t = (norm-0.66)/0.34; pixels[idx]=Math.floor(220+35*t); pixels[idx+1]=Math.floor(220+35*t); pixels[idx+2]=Math.floor(180*t); }
+      pixels[idx+3] = 255;
+    }
+  }
+  self.postMessage({ pixels: pixels, width: w, height: h }, [pixels.buffer]);
+};
+`;
+
+function _getSpectrogramWorker() {
+  if (!_spectrogramWorker) {
+    const blob = new Blob([SPECTROGRAM_WORKER_CODE], { type: 'application/javascript' });
+    _spectrogramWorker = new Worker(URL.createObjectURL(blob));
+  }
+  return _spectrogramWorker;
+}
+
+// Clean up worker on page unload
+window.addEventListener('beforeunload', () => {
+  if (_spectrogramWorker) {
+    _spectrogramWorker.terminate();
+    _spectrogramWorker = null;
+  }
+});
 
 function drawSpectrogram(buffer, bufferIdx) {
   const dpr = window.devicePixelRatio || 1;
@@ -58,147 +123,66 @@ function drawSpectrogram(buffer, bufferIdx) {
 
   spectrogramCanvas.width = w;
   spectrogramCanvas.height = h;
-  spectrogramCanvas.style.width = rect.width + 'px';
-  spectrogramCanvas.style.height = rect.height + 'px';
 
   const ctx = spectrogramCanvas.getContext('2d');
 
   // Check cache
   if (spectrogramCache.has(bufferIdx)) {
     ctx.putImageData(spectrogramCache.get(bufferIdx), 0, 0);
+    spectrogramLoading.style.display = 'none';
     return;
   }
 
-  // Compute spectrogram
-  const data = buffer.getChannelData(0);
-  const sr = buffer.sampleRate;
+  // Show pulsing loading overlay
+  spectrogramLoading.style.display = 'flex';
+
+  // Prepare channel data for transfer
+  const channelData = buffer.getChannelData(0);
   const fftSize = 2048;
   const hopSize = 512;
-  const numFrames = Math.floor((data.length - fftSize) / hopSize);
-  if (numFrames <= 0) return;
 
-  // Pre-compute Hann window
-  const hannWindow = new Float32Array(fftSize);
-  for (let i = 0; i < fftSize; i++) {
-    hannWindow[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (fftSize - 1)));
-  }
+  // Copy the channel data so we can transfer it without detaching the AudioBuffer
+  const channelCopy = new Float32Array(channelData.length);
+  channelCopy.set(channelData);
 
-  // Log frequency mapping (20Hz to 20kHz)
-  const minFreq = 20;
-  const maxFreq = Math.min(20000, sr / 2);
-  const logMin = Math.log10(minFreq);
-  const logMax = Math.log10(maxFreq);
-  const binToFreq = (bin) => bin * sr / fftSize;
+  // Track which bufferIdx is pending so stale results can be discarded
+  _spectrogramPendingIdx = bufferIdx;
 
-  // Map each pixel row to a frequency bin
-  const rowFreqs = new Float32Array(h);
-  const rowBins = new Float32Array(h);
-  for (let y = 0; y < h; y++) {
-    const frac = 1 - y / h; // bottom = low freq
-    const freq = Math.pow(10, logMin + frac * (logMax - logMin));
-    rowFreqs[y] = freq;
-    rowBins[y] = freq * fftSize / sr;
-  }
+  const worker = _getSpectrogramWorker();
 
-  // Compute all FFT frames
-  const halfFFT = fftSize / 2;
-  const magnitudes = new Float32Array(numFrames * halfFFT);
+  worker.onerror = function(e) {
+    console.warn('Spectrogram worker error:', e.message);
+    spectrogramLoading.style.display = 'none';
+    _spectrogramPendingIdx = null;
+  };
 
-  // Inline radix-2 FFT
-  const real = new Float32Array(fftSize);
-  const imag = new Float32Array(fftSize);
+  // Set up one-shot handler for this computation
+  worker.onmessage = function(e) {
+    const result = e.data;
 
-  for (let frame = 0; frame < numFrames; frame++) {
-    const offset = frame * hopSize;
+    // Discard if a newer request superseded this one
+    if (_spectrogramPendingIdx !== bufferIdx) return;
+    _spectrogramPendingIdx = null;
+    spectrogramLoading.style.display = 'none';
 
-    // Apply window and prepare FFT input
-    for (let i = 0; i < fftSize; i++) {
-      real[i] = (offset + i < data.length) ? data[offset + i] * hannWindow[i] : 0;
-      imag[i] = 0;
-    }
+    if (!result.pixels) return; // numFrames <= 0
 
-    // Bit-reversal permutation
-    for (let i = 1, j = 0; i < fftSize; i++) {
-      let bit = fftSize >> 1;
-      while (j & bit) { j ^= bit; bit >>= 1; }
-      j ^= bit;
-      if (i < j) {
-        let tmp = real[i]; real[i] = real[j]; real[j] = tmp;
-        tmp = imag[i]; imag[i] = imag[j]; imag[j] = tmp;
-      }
-    }
+    // Rebuild ImageData from the returned pixel array
+    const imgData = ctx.createImageData(result.width, result.height);
+    imgData.data.set(new Uint8ClampedArray(result.pixels));
+    ctx.putImageData(imgData, 0, 0);
+    spectrogramCache.set(bufferIdx, imgData);
+  };
 
-    // FFT butterfly
-    for (let len = 2; len <= fftSize; len <<= 1) {
-      const ang = -2 * Math.PI / len;
-      const wR = Math.cos(ang);
-      const wI = Math.sin(ang);
-      for (let i = 0; i < fftSize; i += len) {
-        let curR = 1, curI = 0;
-        for (let j = 0; j < len / 2; j++) {
-          const uR = real[i + j];
-          const uI = imag[i + j];
-          const vR = real[i + j + len / 2] * curR - imag[i + j + len / 2] * curI;
-          const vI = real[i + j + len / 2] * curI + imag[i + j + len / 2] * curR;
-          real[i + j] = uR + vR;
-          imag[i + j] = uI + vI;
-          real[i + j + len / 2] = uR - vR;
-          imag[i + j + len / 2] = uI - vI;
-          const newCurR = curR * wR - curI * wI;
-          curI = curR * wI + curI * wR;
-          curR = newCurR;
-        }
-      }
-    }
-
-    // Store magnitudes (dB)
-    const base = frame * halfFFT;
-    for (let i = 0; i < halfFFT; i++) {
-      const mag = Math.sqrt(real[i] * real[i] + imag[i] * imag[i]);
-      magnitudes[base + i] = mag > 0 ? 20 * Math.log10(mag / fftSize) : -120;
-    }
-  }
-
-  // Render to ImageData
-  const imgData = ctx.createImageData(w, h);
-  const pixels = imgData.data;
-
-  for (let x = 0; x < w; x++) {
-    const frame = Math.floor(x / w * numFrames);
-    const base = frame * halfFFT;
-    for (let y = 0; y < h; y++) {
-      const bin = rowBins[y];
-      const binLow = Math.floor(bin);
-      const binHigh = Math.min(binLow + 1, halfFFT - 1);
-      const frac = bin - binLow;
-      const dbVal = magnitudes[base + binLow] * (1 - frac) + magnitudes[base + binHigh] * frac;
-
-      // Map dB to color: -100dB = dark blue, -20dB = bright yellow
-      const norm = Math.max(0, Math.min(1, (dbVal + 100) / 80));
-      const idx = (y * w + x) * 4;
-      // Dark blue → cyan → yellow → white
-      if (norm < 0.33) {
-        const t = norm / 0.33;
-        pixels[idx]     = Math.floor(10 * (1 - t) + 0 * t);   // R
-        pixels[idx + 1] = Math.floor(10 * (1 - t) + 80 * t);  // G
-        pixels[idx + 2] = Math.floor(60 * (1 - t) + 160 * t); // B
-      } else if (norm < 0.66) {
-        const t = (norm - 0.33) / 0.33;
-        pixels[idx]     = Math.floor(0 + 220 * t);     // R
-        pixels[idx + 1] = Math.floor(80 + 140 * t);    // G
-        pixels[idx + 2] = Math.floor(160 * (1 - t));    // B
-      } else {
-        const t = (norm - 0.66) / 0.34;
-        pixels[idx]     = Math.floor(220 + 35 * t);    // R
-        pixels[idx + 1] = Math.floor(220 + 35 * t);    // G
-        pixels[idx + 2] = Math.floor(0 + 180 * t);     // B
-      }
-      pixels[idx + 3] = 255;
-    }
-  }
-
-  ctx.putImageData(imgData, 0, 0);
-  spectrogramCache.set(bufferIdx, imgData);
+  // Post to worker — transfer the Float32Array buffer for zero-copy
+  worker.postMessage({
+    channelData: channelCopy,
+    sampleRate: buffer.sampleRate,
+    fftSize: fftSize,
+    hopSize: hopSize,
+    width: w,
+    height: h
+  }, [channelCopy.buffer]);
 }
 
 function redrawActiveVisual() {

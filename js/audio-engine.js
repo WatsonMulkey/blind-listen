@@ -5,6 +5,7 @@ function play(fromTime = pausedAt) {
   if (activeIndex < 0) {
     activeIndex = 0;
     updateButtons();
+    if (waveformVisible) redrawActiveVisual();
   }
 
   const fileIdx = shuffleMap[activeIndex];

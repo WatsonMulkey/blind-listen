@@ -122,7 +122,7 @@ async function computeAllMetering() {
     const targetLUFS = validLUFS.reduce((a, b) => a + b, 0) / validLUFS.length;
     for (let i = 0; i < buffers.length; i++) {
       if (mixLUFS[i] !== null && isFinite(mixLUFS[i])) {
-        const gainDB = targetLUFS - mixLUFS[i];
+        const gainDB = Math.max(-12, Math.min(12, targetLUFS - mixLUFS[i]));
         mixGainOffsets[i] = Math.pow(10, gainDB / 20);
       }
     }
