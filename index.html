@@ -1080,12 +1080,145 @@
       border-color: var(--accent);
     }
   }
+
+  /* Footer links */
+  .footer-links {
+    margin-top: 0.75rem;
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    align-items: center;
+    font-size: 0.72rem;
+  }
+  .footer-links a {
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+  }
+  .footer-links a:hover { color: var(--accent); }
+  .footer-links .sep { color: var(--border); }
+
+  /* Help button */
+  .help-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    margin-left: 0.5rem;
+    vertical-align: middle;
+    padding: 0;
+    font-family: inherit;
+  }
+  .help-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Onboarding overlay */
+  .onboarding-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+  .onboarding-overlay[hidden] { display: none; }
+  .onboarding-modal {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+    max-width: 480px;
+    width: 90%;
+    max-height: 85vh;
+    overflow-y: auto;
+    position: relative;
+  }
+  .onboarding-close {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    background: none;
+    border: none;
+    font-size: 1.3rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0.25rem;
+    line-height: 1;
+    transition: color var(--transition-fast);
+  }
+  .onboarding-close:hover { color: var(--text-primary); }
+  .onboarding-modal h2 {
+    font-size: 1.3rem;
+    margin-bottom: 1.25rem;
+  }
+  .onboarding-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+  .onboarding-step h3 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 0.35rem;
+  }
+  .onboarding-step p,
+  .onboarding-step ol {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    line-height: 1.55;
+  }
+  .onboarding-step ol {
+    padding-left: 1.25rem;
+  }
+  .onboarding-step li {
+    margin-bottom: 0.3rem;
+  }
+  .onboarding-video-placeholder {
+    width: 100%;
+    aspect-ratio: 16/9;
+    background: var(--bg-elevated);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    margin-bottom: 1.25rem;
+  }
+  .onboarding-start-btn {
+    width: 100%;
+    padding: 0.65rem 1.5rem;
+    border-radius: var(--radius-md);
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+  }
+  .onboarding-start-btn:hover { background: var(--accent-dim); }
+  @media (max-width: 600px) {
+    .onboarding-modal { padding: 1.5rem; width: 95%; }
+    .onboarding-modal h2 { font-size: 1.1rem; }
+  }
 </style>
 </head>
 <body>
 
 <main>
-<h1>Blind Listen</h1>
+<h1>Blind Listen<button class="help-btn" id="helpBtn" aria-label="How to use Blind Listen" title="How to use">?</button></h1>
 <p class="subtitle">Unbiased mix comparison</p>
 
 <div class="upload-zone" id="uploadZone" role="button" tabindex="0" aria-describedby="uploadInstructions">
@@ -1221,6 +1354,40 @@
   <span class="privacy-dot"></span>
   <p>Files stay in your browser &mdash; nothing is uploaded to any server.</p>
 </footer>
+<div class="footer-links">
+  <a href="mailto:watson@foil.engineering?subject=Blind%20Listen%20Bug%20Report">Report a bug</a>
+  <span class="sep">&middot;</span>
+  <a href="mailto:watson@foil.engineering?subject=Blind%20Listen%20Question">Questions?</a>
+  <span class="sep">&middot;</span>
+  <a href="https://foil.engineering" target="_blank" rel="noopener">FOIL Engineering</a>
+</div>
+
+<div class="onboarding-overlay" id="onboardingOverlay" hidden role="dialog" aria-labelledby="onboardingTitle" aria-modal="true">
+  <div class="onboarding-modal">
+    <button class="onboarding-close" id="onboardingClose" aria-label="Close">&times;</button>
+    <h2 id="onboardingTitle">Welcome to Blind Listen</h2>
+    <div class="onboarding-steps">
+      <div class="onboarding-step">
+        <h3>What is this?</h3>
+        <p>A free tool for unbiased mix comparison. Upload your mixes, listen with hidden identities, then reveal which is which. No account required &mdash; everything runs in your browser.</p>
+      </div>
+      <div class="onboarding-step">
+        <h3>How it works</h3>
+        <ol>
+          <li>Drop 2&ndash;5 audio files (WAV, MP3, FLAC, etc.)</li>
+          <li>Click <strong>Start Listening</strong> &mdash; files are randomly assigned to X, Y, Z buttons</li>
+          <li>Switch between mixes, take notes, loop sections</li>
+          <li>Click <strong>Reveal</strong> to see which file was which</li>
+          <li>Export your results as text or PDF</li>
+        </ol>
+      </div>
+    </div>
+    <div class="onboarding-video-placeholder" id="onboardingVideo">
+      Video walkthrough coming soon
+    </div>
+    <button class="onboarding-start-btn" id="onboardingStart">Get Started</button>
+  </div>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
 <!-- Web Worker: js/spectrogram-worker.js (loaded via new Worker(), not a script tag) -->
@@ -1232,5 +1399,6 @@
 <script src="js/timer.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/export.js"></script>
+<script src="js/onboarding.js"></script>
 </body>
 </html>
