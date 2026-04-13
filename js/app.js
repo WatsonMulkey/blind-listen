@@ -28,6 +28,7 @@ let mixGainOffsets = [];
 let lockedBtnIndex = -1;     // which button index the user locked
 let lockedFileIndex = -1;    // which file index was behind that button
 let firstPickFileIndex = -1; // file index from first round (before reshuffle)
+let hasReshuffled = false;    // true after user clicks Reshuffle
 
 // Reference track state
 let refFile = null;
@@ -142,6 +143,7 @@ restartBtn.addEventListener('click', () => {
   lockedBtnIndex = -1;
   lockedFileIndex = -1;
   firstPickFileIndex = -1;
+  hasReshuffled = false;
   refFile = null;
   refBuffer = null;
   refActive = false;

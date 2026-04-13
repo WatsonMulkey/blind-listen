@@ -355,8 +355,8 @@ revealBtn.addEventListener('click', () => {
   // Show export buttons after reveal
   showExportButtons();
 
-  // Show consistency result if a lock was set
-  if (firstPickFileIndex >= 0 && activeIndex >= 0) {
+  // Show consistency result only after reshuffle + second reveal
+  if (hasReshuffled && firstPickFileIndex >= 0 && activeIndex >= 0) {
     const currentFileIndex = shuffleMap[activeIndex];
     const same = currentFileIndex === firstPickFileIndex;
     consistencyResult.textContent = same
@@ -379,6 +379,7 @@ reshuffleBtn.addEventListener('click', () => {
   if (lockedBtnIndex >= 0) {
     firstPickFileIndex = lockedFileIndex;
   }
+  hasReshuffled = true;
 
   shuffle();
   activeIndex = -1;
