@@ -1450,19 +1450,6 @@
   .onboarding-step li {
     margin-bottom: 0.3rem;
   }
-  .onboarding-video-placeholder {
-    width: 100%;
-    aspect-ratio: 16/9;
-    background: var(--bg-elevated);
-    border: 1px dashed var(--border);
-    border-radius: var(--radius-md);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-muted);
-    font-size: 0.82rem;
-    margin-bottom: 1.25rem;
-  }
   .onboarding-start-btn {
     width: 100%;
     padding: 0.75rem 1.5rem;
@@ -1524,7 +1511,7 @@
       <p class="subtitle subtitle--compact">Unbiased mix comparison</p>
     </div>
     <div class="session-timer" id="sessionTimer" aria-label="Session time remaining">
-      <div class="timer-label">Session<button class="timer-tooltip-icon" aria-label="About session timer" aria-describedby="timerTooltip" tabindex="0">?</button></div>
+      <div class="timer-label">Session<button class="timer-tooltip-icon" aria-label="About session timer" aria-describedby="timerTooltip" data-tooltip="After 10 minutes, playback will pause. Click Restart to begin a new session." tabindex="0">?</button></div>
       <div id="timerTooltip" role="tooltip" class="sr-only">After 10 minutes, playback will pause. Click Restart to begin a new session.</div>
       <div class="timer-value" id="timerValue">10:00</div>
       <div class="timer-badge" id="timerBadge"></div>
@@ -1665,9 +1652,6 @@
           <li>Export your results as text or PDF</li>
         </ol>
       </div>
-    </div>
-    <div class="onboarding-video-placeholder" id="onboardingVideo">
-      Video walkthrough coming soon
     </div>
     <button class="onboarding-start-btn" id="onboardingStart">Get Started</button>
   </div>
