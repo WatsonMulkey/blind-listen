@@ -853,6 +853,8 @@
     border-color: var(--accent);
     color: #fff;
     font-weight: 600;
+    font-size: 1rem;
+    padding: 0.65rem 2rem;
     box-shadow: var(--shadow-md), 0 0 16px var(--accent-glow);
   }
 
@@ -1578,8 +1580,8 @@
   <div class="volume-row">
     <span class="volume-label">Vol</span>
     <input type="range" class="volume-bar" id="volumeBar" min="0" max="100" value="80" aria-label="Volume" aria-valuetext="80%">
-    <button class="level-match-btn" id="levelMatchBtn" aria-pressed="false">Level Match</button>
-    <span class="level-match-badge" id="levelMatchBadge">Matched</span>
+    <button class="level-match-btn" id="levelMatchBtn" aria-pressed="false" style="display:none">Level Match</button>
+    <span class="level-match-badge" id="levelMatchBadge" style="display:none">Matched</span>
   </div>
 
   <div class="notes-section">
@@ -1587,17 +1589,17 @@
     <div id="noteRows" style="display:none"></div>
   </div>
 
-  <div class="actions">
-    <button class="action-btn" id="reshuffleBtn" aria-label="Re-randomize mix assignments to test your pick">Reshuffle</button>
-    <button class="action-btn reveal" id="revealBtn" title="Ends the blind test permanently" aria-label="Reveal which file is which">Reveal</button>
-  </div>
-  <p class="mix-hint" id="reshuffleHint" style="display:none"></p>
-
   <div class="actions" id="exportActions" style="display:none">
     <button class="action-btn" id="exportCopyBtn" aria-label="Copy results to clipboard">Copy Text</button>
     <button class="action-btn" id="exportTxtBtn" aria-label="Download results as text file">Download .txt</button>
     <button class="action-btn" id="exportPdfBtn" aria-label="Download results as PDF">Download PDF</button>
   </div>
+
+  <div class="actions">
+    <button class="action-btn" id="reshuffleBtn" aria-label="Re-randomize mix assignments to test your pick">Reshuffle</button>
+    <button class="action-btn reveal" id="revealBtn" title="Ends the blind test permanently" aria-label="Reveal which file is which">Reveal</button>
+  </div>
+  <p class="mix-hint" id="reshuffleHint" style="display:none"></p>
 
   <div class="kofi-section" id="kofiSection">
     <a href="https://ko-fi.com/foilengineering" class="kofi-cta" target="_blank" rel="noopener">Did this help you make a mix decision? <strong>Consider supporting Blind Listen right here.</strong></a>
@@ -1707,5 +1709,7 @@
 })();
 </script>
 <script src="js/onboarding.js"></script>
+<script defer src="/_vercel/insights/script.js"></script>
+<script defer src="/_vercel/speed-insights/script.js"></script>
 </body>
 </html>
