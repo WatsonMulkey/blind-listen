@@ -1,6 +1,30 @@
 // ─── Export Results ───────────────────────────────────────────
 // PAID_GATE: PDF export (ungated for now — all users get this)
 
+// FOI-526: one data-derivation path for both text + PDF exports (were duplicated, and the PDF
+// copy silently dropped RMS). FOI-522: the consistency verdict is gated on hasReshuffled here.
+function getMixRows() {
+  return shuffleMap.map((fileIdx, i) => {
+    const lufs = mixLUFS[fileIdx];
+    const peak = mixPeak[fileIdx];
+    const rms = mixRMS[fileIdx];
+    return {
+      label: LABELS[i],
+      name: files[fileIdx].name,
+      lufsStr: (lufs !== null && isFinite(lufs)) ? lufs.toFixed(1) + ' LUFS' : '--',
+      peakStr: (peak !== null && isFinite(peak)) ? peak.toFixed(1) + ' dBFS' : '--',
+      rmsStr: (rms !== null && isFinite(rms)) ? rms.toFixed(1) + ' dB RMS' : '--',
+    };
+  });
+}
+
+function getConsistencyVerdict() {
+  if (!(firstPickFileIndex >= 0 && activeIndex >= 0 && hasReshuffled)) return null;
+  return shuffleMap[activeIndex] === firstPickFileIndex
+    ? 'CONSISTENT — same file picked both rounds'
+    : 'DIFFERENT — different files picked across rounds';
+}
+
 function buildExportText() {
   const date = new Date().toISOString().split('T')[0];
   const lines = [];
@@ -8,17 +32,9 @@ function buildExportText() {
   lines.push(`Date: ${date}`);
   lines.push('');
   lines.push('─── Mix Assignments ───');
-  for (let i = 0; i < shuffleMap.length; i++) {
-    const fileIdx = shuffleMap[i];
-    const name = files[fileIdx].name;
-    const lufs = mixLUFS[fileIdx];
-    const peak = mixPeak[fileIdx];
-    const rms = mixRMS[fileIdx];
-    const lufsStr = (lufs !== null && isFinite(lufs)) ? lufs.toFixed(1) + ' LUFS' : '--';
-    const peakStr = (peak !== null && isFinite(peak)) ? peak.toFixed(1) + ' dBFS' : '--';
-    const rmsStr = (rms !== null && isFinite(rms)) ? rms.toFixed(1) + ' dB RMS' : '--';
-    lines.push(`${LABELS[i]}: ${name}`);
-    lines.push(`   ${lufsStr} | ${peakStr} peak | ${rmsStr}`);
+  for (const row of getMixRows()) {
+    lines.push(`${row.label}: ${row.name}`);
+    lines.push(`   ${row.lufsStr} | ${row.peakStr} peak | ${row.rmsStr}`);
   }
 
   // Notes
@@ -40,15 +56,12 @@ function buildExportText() {
     lines.push('Level matching: ON');
   }
 
-  // Consistency result — only meaningful after a reshuffle (FOI-522: match the UI gate in ui.js)
-  if (firstPickFileIndex >= 0 && activeIndex >= 0 && hasReshuffled) {
-    const currentFileIndex = shuffleMap[activeIndex];
-    const same = currentFileIndex === firstPickFileIndex;
+  // Consistency result — only meaningful after a reshuffle (FOI-522, in getConsistencyVerdict)
+  const verdict = getConsistencyVerdict();
+  if (verdict) {
     lines.push('');
     lines.push('─── Consistency Check ───');
-    lines.push(same
-      ? 'CONSISTENT — same file picked both rounds'
-      : 'DIFFERENT — different files picked across rounds');
+    lines.push(verdict);
   }
 
   // Reference track
@@ -134,22 +147,15 @@ exportPdfBtn.addEventListener('click', () => {
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
-  for (let i = 0; i < shuffleMap.length; i++) {
-    const fileIdx = shuffleMap[i];
-    const name = files[fileIdx].name;
-    const lufs = mixLUFS[fileIdx];
-    const peak = mixPeak[fileIdx];
-    const lufsStr = (lufs !== null && isFinite(lufs)) ? lufs.toFixed(1) + ' LUFS' : '--';
-    const peakStr = (peak !== null && isFinite(peak)) ? peak.toFixed(1) + ' dBFS' : '--';
-
+  for (const row of getMixRows()) {
     doc.setFont('helvetica', 'bold');
-    doc.text(`${LABELS[i]}:`, margin, y);
+    doc.text(`${row.label}:`, margin, y);
     doc.setFont('helvetica', 'normal');
-    doc.text(name, margin + 12, y);
+    doc.text(row.name, margin + 12, y);
     y += lineH * 0.8;
     doc.setFontSize(9);
     doc.setTextColor(100);
-    doc.text(`${lufsStr}  |  ${peakStr} peak`, margin + 12, y);
+    doc.text(`${row.lufsStr}  |  ${row.peakStr} peak  |  ${row.rmsStr}`, margin + 12, y);
     doc.setTextColor(0);
     doc.setFontSize(10);
     y += lineH;
@@ -174,8 +180,9 @@ exportPdfBtn.addEventListener('click', () => {
     });
   }
 
-  // Consistency — only meaningful after a reshuffle (FOI-522: match the UI gate in ui.js)
-  if (firstPickFileIndex >= 0 && activeIndex >= 0 && hasReshuffled) {
+  // Consistency — only meaningful after a reshuffle (FOI-522, in getConsistencyVerdict)
+  const verdict = getConsistencyVerdict();
+  if (verdict) {
     y += lineH * 0.5;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
@@ -183,9 +190,7 @@ exportPdfBtn.addEventListener('click', () => {
     y += lineH;
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    const currentFileIndex = shuffleMap[activeIndex];
-    const same = currentFileIndex === firstPickFileIndex;
-    doc.text(same ? 'CONSISTENT — same file picked both rounds' : 'DIFFERENT — different files picked across rounds', margin, y);
+    doc.text(verdict, margin, y);
     y += lineH;
   }
 

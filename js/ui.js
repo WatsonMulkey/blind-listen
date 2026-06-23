@@ -187,11 +187,7 @@ function switchToRef() {
 
 function deactivateRef() {
   refActive = false;
-  if (refSourceNode) {
-    try { refSourceNode.stop(); } catch (e) { console.warn('Ref stop:', e.message); }
-    refSourceNode.disconnect();
-    refSourceNode = null;
-  }
+  stopRefSource();
   const refBtnEl = document.getElementById('refBtn');
   if (refBtnEl) refBtnEl.classList.remove('active');
 }
@@ -200,10 +196,7 @@ function playRef(fromTime = 0) {
   if (!refBuffer || !audioCtx) return;
   if (audioCtx.state === 'suspended') audioCtx.resume();
 
-  if (refSourceNode) {
-    try { refSourceNode.stop(); } catch (e) { console.warn('Ref stop:', e.message); }
-    refSourceNode.disconnect();
-  }
+  stopRefSource();
 
   if (!refGainNode) {
     refGainNode = audioCtx.createGain();
@@ -231,7 +224,7 @@ function playRef(fromTime = 0) {
 
 function tickSeekRef() {
   if (!isPlaying || !refActive) return;
-  const t = getCurrentTimeRef();
+  const t = getCurrentTime();
   const dur = refBuffer.duration;
   seekBar.value = (t / dur) * 1000;
   updateSeekDisplay(t, dur);
@@ -241,27 +234,17 @@ function tickSeekRef() {
   animFrame = requestAnimationFrame(tickSeekRef);
 }
 
-function getCurrentTimeRef() {
-  if (!isPlaying) return pausedAt;
-  const raw = audioCtx.currentTime - startedAt;
-  if (loopEnabled && loopEnd > loopStart) {
-    const loopLen = loopEnd - loopStart;
-    if (raw >= loopEnd) return loopStart + ((raw - loopStart) % loopLen);
-  }
-  return raw;
+// FOI-526: single ref-source teardown (was pasted 4× across deactivateRef / playRef / the play+seek handlers).
+function stopRefSource() {
+  if (!refSourceNode) return;
+  try { refSourceNode.stop(); } catch (e) { console.warn('Ref stop:', e.message); }
+  refSourceNode.disconnect();
+  refSourceNode = null;
 }
 
 async function loadRefTrack(file) {
   refFile = file;
-  if (!audioCtx) {
-    audioCtx = new AudioContext();
-    levelMatchGain = audioCtx.createGain();
-    levelMatchGain.gain.value = 1.0;
-    gainNode = audioCtx.createGain();
-    gainNode.gain.value = volumeBar.value / 100;
-    levelMatchGain.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-  }
+  ensureAudioGraph();
   try {
     const arr = await file.arrayBuffer();
     refBuffer = await audioCtx.decodeAudioData(arr);
@@ -290,8 +273,8 @@ playBtn.addEventListener('click', () => {
   if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
   if (refActive) {
     if (isPlaying) {
-      pausedAt = getCurrentTimeRef();
-      if (refSourceNode) { try { refSourceNode.stop(); } catch (e) { console.warn('Ref stop:', e.message); } refSourceNode.disconnect(); refSourceNode = null; }
+      pausedAt = getCurrentTime();
+      stopRefSource();
       isPlaying = false;
       playBtn.innerHTML = '&#9654;';
       playBtn.setAttribute('aria-label', 'Play');
@@ -310,7 +293,7 @@ seekBar.addEventListener('input', () => {
     const t = (seekBar.value / 1000) * dur;
     updateSeekDisplay(t, dur);
     if (isPlaying) {
-      if (refSourceNode) { try { refSourceNode.stop(); } catch (e) { console.warn('Ref stop:', e.message); } refSourceNode.disconnect(); refSourceNode = null; }
+      stopRefSource();
       isPlaying = false;
       playRef(t);
     } else {

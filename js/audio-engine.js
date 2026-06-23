@@ -1,5 +1,18 @@
 // ─── Audio Engine ─────────────────────────────────────────────
 
+// FOI-526: single source for lazy audio-graph init (was duplicated verbatim in
+// app.js processFiles + ui.js loadRefTrack).
+function ensureAudioGraph() {
+  if (audioCtx) return;
+  audioCtx = new AudioContext();
+  levelMatchGain = audioCtx.createGain();
+  levelMatchGain.gain.value = 1.0;
+  gainNode = audioCtx.createGain();
+  gainNode.gain.value = volumeBar.value / 100;
+  levelMatchGain.connect(gainNode);
+  gainNode.connect(audioCtx.destination);
+}
+
 function play(fromTime = pausedAt) {
   if (isPlaying) stop();
   if (activeIndex < 0) {
@@ -68,16 +81,18 @@ function stop() {
   if (animFrame) cancelAnimationFrame(animFrame);
 }
 
-function getCurrentTime() {
-  if (!isPlaying) return pausedAt;
-  const raw = audioCtx.currentTime - startedAt;
-  if (loopEnabled && loopEnd > loopStart) {
+// FOI-526: shared loop-wrap math (was duplicated in getCurrentTime + ui.js getCurrentTimeRef).
+function wrapLoopTime(raw) {
+  if (loopEnabled && loopEnd > loopStart && raw >= loopEnd) {
     const loopLen = loopEnd - loopStart;
-    if (raw >= loopEnd) {
-      return loopStart + ((raw - loopStart) % loopLen);
-    }
+    return loopStart + ((raw - loopStart) % loopLen);
   }
   return raw;
+}
+
+function getCurrentTime() {
+  if (!isPlaying) return pausedAt;
+  return wrapLoopTime(audioCtx.currentTime - startedAt);
 }
 
 function getActiveDuration() {

@@ -364,15 +364,7 @@ async function handleFiles(fileList) {
   }
   renderFileList();
 
-  if (!audioCtx) {
-    audioCtx = new AudioContext();
-    levelMatchGain = audioCtx.createGain();
-    levelMatchGain.gain.value = 1.0;
-    gainNode = audioCtx.createGain();
-    gainNode.gain.value = volumeBar.value / 100;
-    levelMatchGain.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-  }
+  ensureAudioGraph();
 
   for (let i = startIdx; i < files.length; i++) {
     fileStates[i].status = 'decoding';
