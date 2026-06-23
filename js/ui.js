@@ -85,6 +85,9 @@ function toggleLock(btnIndex) {
     // Unfavorite
     lockedBtnIndex = -1;
     lockedFileIndex = -1;
+    // FOI-522: the first-round pick is only locked in at reshuffle (see reshuffle handler);
+    // clear it here so a retracted pre-reshuffle pick can't drive a stale consistency verdict.
+    if (!hasReshuffled) firstPickFileIndex = -1;
   } else {
     // Show reshuffle hint on first-ever favorite
     const wasUnlocked = lockedBtnIndex === -1;

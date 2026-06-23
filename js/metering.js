@@ -102,6 +102,21 @@ function computeRMSdB(buffer) {
   return rms > 0 ? 20 * Math.log10(rms) : -Infinity;
 }
 
+// Pure: given an array of LUFS values, return per-file linear gain offsets that bring
+// each toward the group average, with a ±12 dB ear-safety clamp so a near-silent mix
+// can't be boosted into clipping / hearing-damage territory. Single source of truth for
+// the clamp (FOI-523); the test-runner copy must stay in sync (copy removal = FOI-526).
+function computeLevelMatchOffsets(lufsArray) {
+  const validLUFS = lufsArray.filter(l => l !== null && isFinite(l));
+  if (validLUFS.length < 2) return lufsArray.map(() => 1.0);
+  const targetLUFS = validLUFS.reduce((a, b) => a + b, 0) / validLUFS.length;
+  return lufsArray.map(l => {
+    if (l === null || !isFinite(l)) return 1.0;
+    const gainDB = Math.max(-12, Math.min(12, targetLUFS - l));
+    return Math.pow(10, gainDB / 20);
+  });
+}
+
 async function computeAllMetering() {
   mixLUFS = new Array(buffers.length).fill(null);
   mixPeak = new Array(buffers.length).fill(null);
@@ -116,17 +131,8 @@ async function computeAllMetering() {
   });
   await Promise.all(promises);
 
-  // Compute level match gain offsets
-  const validLUFS = mixLUFS.filter(l => l !== null && isFinite(l));
-  if (validLUFS.length >= 2) {
-    const targetLUFS = validLUFS.reduce((a, b) => a + b, 0) / validLUFS.length;
-    for (let i = 0; i < buffers.length; i++) {
-      if (mixLUFS[i] !== null && isFinite(mixLUFS[i])) {
-        const gainDB = Math.max(-12, Math.min(12, targetLUFS - mixLUFS[i]));
-        mixGainOffsets[i] = Math.pow(10, gainDB / 20);
-      }
-    }
-  }
+  // Compute level match gain offsets (±12 dB ear-safety clamp lives in computeLevelMatchOffsets — one source of truth)
+  mixGainOffsets = computeLevelMatchOffsets(mixLUFS);
 }
 
 function renderMixStats() {

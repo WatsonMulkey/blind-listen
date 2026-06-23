@@ -338,13 +338,14 @@ function computeRMSdB_pure(channelArrays) {
 }
 
 function computeLevelMatchOffsets(lufsArray) {
-  // Pure version: given array of LUFS values, compute gain offsets
+  // Pure COPY of js/metering.js computeLevelMatchOffsets — MUST stay in sync, including
+  // the ±12 dB ear-safety clamp (FOI-523). Copy elimination tracked in FOI-526.
   const validLUFS = lufsArray.filter(l => l !== null && isFinite(l));
   if (validLUFS.length < 2) return lufsArray.map(() => 1.0);
   const targetLUFS = validLUFS.reduce((a, b) => a + b, 0) / validLUFS.length;
   return lufsArray.map(l => {
     if (l === null || !isFinite(l)) return 1.0;
-    const gainDB = targetLUFS - l;
+    const gainDB = Math.max(-12, Math.min(12, targetLUFS - l));
     return Math.pow(10, gainDB / 20);
   });
 }
@@ -739,6 +740,16 @@ async function runAllTests() {
     const offsets = computeLevelMatchOffsets([null, -20.0]);
     // Only one valid LUFS, so all offsets = 1.0
     offsets.forEach((o, i) => assertApprox(o, 1.0, 0.0001, `offset[${i}] with null`));
+  });
+
+  await test('LM-UNIT-007', '>12 dB delta clamps gain to ±12 dB (ear-safety, FOI-523)', () => {
+    // Two files 67 dB apart: target = (-90 + -23)/2 = -56.5.
+    //   quiet (-90): delta +33.5 dB → clamps to +12 dB → 10^(12/20)
+    //   loud  (-23): delta -33.5 dB → clamps to -12 dB → 10^(-12/20)
+    // Without the clamp, offset[0] would be ~47.5× — a hearing-damage boost.
+    const offsets = computeLevelMatchOffsets([-90.0, -23.0]);
+    assertApprox(offsets[0], Math.pow(10, 12 / 20), 0.0001, 'quiet file clamps to +12 dB');
+    assertApprox(offsets[1], Math.pow(10, -12 / 20), 0.0001, 'loud file clamps to -12 dB');
   });
 
 

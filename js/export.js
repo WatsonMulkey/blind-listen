@@ -40,8 +40,8 @@ function buildExportText() {
     lines.push('Level matching: ON');
   }
 
-  // Consistency result
-  if (firstPickFileIndex >= 0 && activeIndex >= 0) {
+  // Consistency result — only meaningful after a reshuffle (FOI-522: match the UI gate in ui.js)
+  if (firstPickFileIndex >= 0 && activeIndex >= 0 && hasReshuffled) {
     const currentFileIndex = shuffleMap[activeIndex];
     const same = currentFileIndex === firstPickFileIndex;
     lines.push('');
@@ -174,8 +174,8 @@ exportPdfBtn.addEventListener('click', () => {
     });
   }
 
-  // Consistency
-  if (firstPickFileIndex >= 0 && activeIndex >= 0) {
+  // Consistency — only meaningful after a reshuffle (FOI-522: match the UI gate in ui.js)
+  if (firstPickFileIndex >= 0 && activeIndex >= 0 && hasReshuffled) {
     y += lineH * 0.5;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
