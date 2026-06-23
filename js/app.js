@@ -130,35 +130,70 @@ startListenBtn.addEventListener('click', () => {
   startSessionTimer();
 });
 
-// Restart session — clear everything and return to upload screen
-restartBtn.addEventListener('click', () => {
+// FOI-524: THE single place all per-session state is reset. Restart calls this; any NEW stateful
+// global declared in the State block above MUST be reset here. Also fully tears down the audio
+// graph — previously refGainNode / refSourceNode / audioCtx survived a restart (it "worked" only
+// because the graph was never rebuilt; any future audioCtx cleanup would have left a dangling
+// reference). See docs/tighten-up-2026-06-22.md finding #3.
+function resetSessionState() {
+  // Stop + tear down the audio graph (rebuilt lazily by ensureAudioGraph on the next session).
   if (isPlaying) stop();
+  stopRefSource();
+  if (audioCtx) { try { audioCtx.close(); } catch (e) { console.warn('audioCtx close:', e.message); } }
+  audioCtx = null;
+  gainNode = null;
+  levelMatchGain = null;
+  refGainNode = null;
+
+  // Files / playback
   files = [];
   buffers = [];
   fileStates = [];
   shuffleMap = [];
   activeIndex = -1;
   pausedAt = 0;
+  startedAt = 0;
+  duration = 0;
   revealed = false;
+
+  // Metering
+  mixLUFS = [];
+  mixPeak = [];
+  mixRMS = [];
+  mixGainOffsets = [];
+  levelMatchEnabled = false;
+
+  // Lock-in / reshuffle
   lockedBtnIndex = -1;
   lockedFileIndex = -1;
   firstPickFileIndex = -1;
   hasReshuffled = false;
+
+  // Reference track
   refFile = null;
   refBuffer = null;
   refActive = false;
+
+  // Spectrogram / waveform
+  spectrogramMode = false;
+  spectrogramCache.clear();
+  waveformVisible = true;
+  lastAnnouncedThreshold = null;
+
+  // Loop
   loopEnabled = false;
   loopStart = 0;
   loopEnd = 0;
-  spectrogramCache.clear();
-  levelMatchEnabled = false;
-  levelMatchGain && (levelMatchGain.gain.value = 1.0);
-  mixGainOffsets = [];
-  mixLUFS = [];
-  mixPeak = [];
-  mixRMS = [];
-  spectrogramMode = false;
-  lastAnnouncedThreshold = null;
+
+  // Timer
+  if (timerInterval) clearInterval(timerInterval);
+  timerStarted = false;
+  sessionSeconds = 600;
+}
+
+// Restart session — reset all state (resetSessionState) then return to the upload screen.
+restartBtn.addEventListener('click', () => {
+  resetSessionState();
   sessionStorage.removeItem('durationWarningDismissed');
   durationWarning.style.display = 'none';
   restartBtn.style.display = 'none';
@@ -173,10 +208,6 @@ restartBtn.addEventListener('click', () => {
   fileListEl.style.display = '';
   fileSummary.style.display = '';
   fileInput.value = '';
-  // Reset timer
-  if (timerInterval) clearInterval(timerInterval);
-  timerStarted = false;
-  sessionSeconds = 600;
 });
 
 // Disable transport controls on load
@@ -382,27 +413,22 @@ async function handleFiles(fileList) {
     updateTransportState();
   }
 
-  // Check duration mismatch among decoded buffers
+  // Duration mismatch is ADVISORY only (FOI-527) — comparing different-length mixes is a valid
+  // use (e.g. a mix vs a master with a different tail), so warn but let the user proceed.
   let durationMismatch = false;
   const decodedDurations = buffers.filter(b => b !== null).map(b => b.duration);
   if (decodedDurations.length >= 2 && !sessionStorage.getItem('durationWarningDismissed')) {
     const minDur = Math.min(...decodedDurations);
     const maxDur = Math.max(...decodedDurations);
-    if (maxDur / minDur > 1.10) {
-      durationMismatch = true;
-      durationWarning.style.display = 'flex';
-      fileSummary.textContent = 'Please upload your files again';
-      fileSummary.classList.remove('all-ready');
-      startListenBtn.style.display = 'none';
-      restartBtn.style.display = 'inline-block';
-    } else {
-      durationWarning.style.display = 'none';
-    }
+    durationMismatch = maxDur / minDur > 1.10;
   }
+  durationWarning.style.display = durationMismatch ? 'flex' : 'none';
 
   const readyCount = fileStates.filter(f => f.status === 'ready').length;
-  if (readyCount >= 2 && !durationMismatch) {
+  if (readyCount >= 2) {
     startListenBtn.style.display = 'inline-block';
+    // On a length mismatch, also offer Restart as the "re-upload instead" alternative.
+    if (durationMismatch) restartBtn.style.display = 'inline-block';
   }
 }
 
