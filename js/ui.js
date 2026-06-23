@@ -445,8 +445,9 @@ document.addEventListener('keydown', e => {
   if (e.key === '4' && readyCount >= 4) switchTo(3);
   if (e.key === '5' && readyCount >= 5) switchTo(4);
   if (e.key === '0' && refBuffer) switchToRef();
-  if (e.key === 'ArrowLeft' && readyCount >= 1) { e.preventDefault(); switchTo((activeIndex - 1 + readyCount) % readyCount); }
-  if (e.key === 'ArrowRight' && readyCount >= 1) { e.preventDefault(); switchTo((activeIndex + 1) % readyCount); }
+  // FOI-527: with no active mix (post-reshuffle / REF, activeIndex = -1), land deterministically on mix 0 instead of a modulo-of-(-1) jump.
+  if (e.key === 'ArrowLeft' && readyCount >= 1) { e.preventDefault(); switchTo(activeIndex < 0 ? 0 : (activeIndex - 1 + readyCount) % readyCount); }
+  if (e.key === 'ArrowRight' && readyCount >= 1) { e.preventDefault(); switchTo(activeIndex < 0 ? 0 : (activeIndex + 1) % readyCount); }
   if (e.key.toLowerCase() === 'l') toggleLoop();
   if (e.key.toLowerCase() === 'm') toggleLevelMatch();
   if (e.key.toLowerCase() === 'r' && !revealed) revealBtn.click();

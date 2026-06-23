@@ -950,9 +950,9 @@ Blind Listen is a pure client-side app. There is no network layer, no database, 
 
 **Test ID**: AE-011
 **Description**: Level match gain clamped to reasonable range
-**Method**: Unit test (see test-runner.html, LM-UNIT-001)
-**Expected**: `mixGainOffsets` values are never > 10.0 (20dB boost) or < 0.001. Files with extreme LUFS differences should either be clamped or excluded from gain normalization.
-**Notes**: The current implementation has no explicit clamp. A -60 LUFS file paired with -6 LUFS would produce a 54dB boost (gainOffset ≈ 501). This is a P1 risk for ear damage.
+**Method**: Unit test (see test-runner.html, LM-UNIT-001 … 007)
+**Expected**: `computeLevelMatchOffsets` clamps every gain to ±12 dB, so offsets stay within [10^(-12/20), 10^(12/20)] ≈ [0.251, 3.981]. Files with extreme LUFS differences are clamped (not excluded).
+**Notes**: IMPLEMENTED — `js/metering.js` `computeLevelMatchOffsets` applies `Math.max(-12, Math.min(12, …))`; covered by LM-UNIT-007 (a 67 dB delta clamps to ±12 dB). Resolved 2026-06-22 (FOI-523). Was previously unclamped (the ear-damage risk).
 **Priority**: P1
 
 ---
@@ -1111,7 +1111,7 @@ Test matrix — open `index.html` and run the core user flow (upload 2 files, pl
 ---
 
 **Test ID**: A11Y-004
-**Description**: Mix buttons have `role="radio"` and `aria-pressed`
+**Description**: Mix-selection container has `role="toolbar"`; mix buttons use `aria-pressed`
 **Steps**: Inspect a mix button after switching.
 **Expected**: Active button has `aria-pressed="true"`. Inactive buttons have `aria-pressed="false"`.
 **Priority**: P1
@@ -1135,14 +1135,14 @@ Test matrix — open `index.html` and run the core user flow (upload 2 files, pl
 
 **Test ID**: A11Y-007
 **Description**: Color contrast for primary text on background
-**Expected**: `#f0f0f5` (--text-primary) on `#09090f` (--bg-base): contrast ratio ≈ 17:1. Passes WCAG AA (4.5:1) and AAA (7:1).
+**Expected**: `#f0f0f5` (--text-primary) on `#08080e` (--bg-base): contrast ratio ≈ 17:1. Passes WCAG AA (4.5:1) and AAA (7:1).
 **Priority**: P2
 
 ---
 
 **Test ID**: A11Y-008
 **Description**: Color contrast for muted text
-**Expected**: `#4a4a60` (--text-muted) on `#09090f`: contrast ratio ≈ 2.8:1. FAILS WCAG AA. These are decorative/supporting labels (keyboard hints, timer label). Acceptable risk but worth noting.
+**Expected**: `#4a4a60` (--text-muted) on `#08080e`: contrast ratio ≈ 2.8:1. FAILS WCAG AA. These are decorative/supporting labels (keyboard hints, timer label). Acceptable risk but worth noting.
 **Priority**: P3
 
 ---
@@ -1290,7 +1290,7 @@ Test matrix — open `index.html` and run the core user flow (upload 2 files, pl
 |---|---|---|
 | No automated integration tests (file decode end-to-end) | Medium | Requires browser automation (Playwright). Not worth building for a solo project at this stage. |
 | LUFS validation against ITU-R test vectors | Medium | Published EBU Tech Doc 3341 test signals require specific WAV files not available in this repo. Unit tests use synthetic signals as approximation. |
-| Level match gain clamp for extreme LUFS differences | High | A 60dB gain boost is theoretically possible. Should add a cap (e.g. ±12dB) before launch. |
+| Level match gain clamp for extreme LUFS differences | Resolved | ±12 dB clamp implemented in `computeLevelMatchOffsets` (`js/metering.js`), covered by LM-UNIT-007 (FOI-523, 2026-06-22). |
 | Spectrogram CPU on main thread | Medium | Long tracks may stutter. Documented as known risk. |
 | Mobile drag precision for loop markers | Low | Touch targets are 16px wide. Acceptable for MVP. |
 | PDF text overflow for long filenames | Low | jsPDF does not auto-wrap text. |

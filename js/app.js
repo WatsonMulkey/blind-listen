@@ -298,6 +298,15 @@ function updateTransportState() {
 }
 
 function removeFile(idx) {
+  // FOI-525: removeFile is only valid BEFORE the session starts. Once started, the metering
+  // arrays (mixLUFS/mixPeak/mixRMS/mixGainOffsets) and spectrogramCache are keyed by file index
+  // and shuffleMap is built from those indices — splicing here would silently misalign gains/
+  // spectrograms to the wrong file. Any future "remove mid-session" must re-run computeAllMetering()
+  // and rebuild shuffleMap + caches.
+  if (player.classList.contains('active')) {
+    console.warn('removeFile ignored: only valid before the session starts.');
+    return;
+  }
   if (isPlaying) pause();
   files.splice(idx, 1);
   buffers.splice(idx, 1);

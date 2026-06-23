@@ -20,7 +20,7 @@ First tagged release. The app has been live and usable for weeks; this snapshot 
 - Level matching so loudness doesn't bias your ears.
 - Spectrogram view (Web Worker-computed so the UI stays smooth).
 - Section looping with markers and re-roll.
-- Session timer with configurable duration.
+- Session timer (10-minute session).
 - Notes panel + export to text or PDF (via jsPDF).
 - Keyboard shortcuts: `1–5` mixes, `0` reference, `Space` play/pause, `L` loop, `M` level match, `R` reveal.
 - Light/dark mode toggle.
