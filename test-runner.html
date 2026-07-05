@@ -308,8 +308,12 @@ function getKWeightStage2(fs) {
   const Q  = 0.5003270373238773;
   const K  = Math.tan(Math.PI * f0 / fs);
   const a0 = 1 + K / Q + K * K;
+  // RLB high-pass. Denominator is normalized to a0 = 1; the numerator stays the
+  // reference [1, -2, 1] (do NOT divide it by a0). This matches the published
+  // ITU-R BS.1770-4 / EBU Tech 3341 coefficients exactly, so a full-scale 1 kHz
+  // sine reads the canonical ~= -3.01 LUFS. (FOI-535)
   return [
-    [1 / a0, -2 / a0, 1 / a0],
+    [1, -2, 1],
     [1, 2 * (K * K - 1) / a0, (1 - K / Q + K * K) / a0]
   ];
 }
@@ -819,25 +823,29 @@ async function runAllTests() {
       assert(result === -Infinity, `Expected -Infinity for silence, got ${result}`);
     });
 
-    await test('MV-002', '-23 dBFS 1kHz sine for 10s ≈ -23 LUFS (±1.0 LUFS)', async () => {
-      // A 1kHz sine at -23 dBFS amplitude.
-      // The K-weighting filter has ~0 dB gain at 1kHz, so integrated LUFS ≈ -23.
-      // Due to block-gating and filter transients, allow ±1.0 LUFS tolerance.
+    await test('MV-002', '-23 dBFS-peak 1kHz sine for 10s ≈ -26 LUFS (peak − 3 dB)', async () => {
+      // For a 1 kHz sine at peak amplitude P dBFS:
+      //   • its mean square sits 3.01 dB below peak (crest factor: RMS = peak/√2),
+      //   • K-weighting adds ≈ +0.7 dB at 1 kHz, which nearly cancels BS.1770's
+      //     −0.691 offset — net LUFS ≈ P − 3.0.
+      //   (Equivalently: a full-scale 1 kHz sine ≈ −3 LUFS, the BS.1770 ref point.)
+      // The old expectation (≈ P) dropped the crest factor and read ~3 dB high. (FOI-535)
       const sr = 44100;
-      const amp = dbToLinear(-23);
-      const data = generateSineWave(sr, 10.0, 1000, amp);
+      const peakDBFS = -23;
+      const data = generateSineWave(sr, 10.0, 1000, dbToLinear(peakDBFS));
       const result = await computeLUFS_browser(sr, data);
       assert(isFinite(result), `Expected finite LUFS, got ${result}`);
-      assertApprox(result, -23.0, 1.0, 'LUFS for -23dBFS 1kHz sine');
+      assertApprox(result, peakDBFS - 3.0, 0.5, 'LUFS for a -23 dBFS-peak 1kHz sine');
     });
 
-    await test('MV-003', '-6 dBFS 1kHz sine for 10s ≈ -6 LUFS (±1.0)', async () => {
+    await test('MV-003', '-6 dBFS-peak 1kHz sine for 10s ≈ -9 LUFS (peak − 3 dB)', async () => {
+      // Same crest-factor + K-weighting reasoning as MV-002: LUFS ≈ peak − 3 dB. (FOI-535)
       const sr = 44100;
-      const amp = dbToLinear(-6);
-      const data = generateSineWave(sr, 10.0, 1000, amp);
+      const peakDBFS = -6;
+      const data = generateSineWave(sr, 10.0, 1000, dbToLinear(peakDBFS));
       const result = await computeLUFS_browser(sr, data);
       assert(isFinite(result), `Expected finite LUFS, got ${result}`);
-      assertApprox(result, -6.0, 1.0, 'LUFS for -6dBFS 1kHz sine');
+      assertApprox(result, peakDBFS - 3.0, 0.5, 'LUFS for a -6 dBFS-peak 1kHz sine');
     });
 
     await test('MV-004', 'Signal below absolute gate (-70 LUFS) returns -Infinity', async () => {

@@ -20,8 +20,12 @@ function getKWeightStage2(fs) {
   const Q  = 0.5003270373238773;
   const K  = Math.tan(Math.PI * f0 / fs);
   const a0 = 1 + K / Q + K * K;
+  // RLB high-pass. Denominator is normalized to a0 = 1; the numerator stays the
+  // reference [1, -2, 1] (do NOT divide it by a0). This matches the published
+  // ITU-R BS.1770-4 / EBU Tech 3341 coefficients exactly, so a full-scale 1 kHz
+  // sine reads the canonical ~= -3.01 LUFS. (FOI-535)
   return [
-    [1 / a0, -2 / a0, 1 / a0],
+    [1, -2, 1],
     [1, 2 * (K * K - 1) / a0, (1 - K / Q + K * K) / a0]
   ];
 }
