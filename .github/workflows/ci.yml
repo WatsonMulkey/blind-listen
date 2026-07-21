@@ -1,0 +1,50 @@
+# ADR-033 / FOI-651: minimal CI for the zero-dependency browser test harness,
+# adapting The Number's FOI-598 floor-gate pattern. The suite in
+# test-runner.html was historically run manually in a browser with pass counts
+# recorded in commit messages — nothing surfaced rot between manual runs.
+# Two gates per run: the headless runner's exit code (any red test, page
+# error, or a suite that never completes) and the EXPECTED_MIN floor on the
+# passed count (silent shrinkage — tests dropped or failing to register).
+#
+# The shipped app stays zero-dependency: no package.json is committed.
+# Playwright is a CI-only tool, installed ad hoc below at a pinned version,
+# and the manual browser path (just open test-runner.html) still works with
+# nothing installed.
+#
+# EXPECTED_MIN floor (raise when adding tests; NEVER lower without a ticket):
+#   2026-07-21: 105 — initial floor, headless-honest count measured via
+#   scripts/ci-run-tests.mjs on Chromium 149 headless; 0 skipped — the
+#   day-one Web Audio guard did not fire (headless Chromium exposes
+#   AudioContext, so the 6-test LUFS suite MV-001..006 runs). If a future
+#   headless environment drops Web Audio, the harness skips that suite as a
+#   whole and the runner reports skipped_markers=1 / webaudio=no — that is a
+#   floor breach by design (105 -> 99), not something to paper over.
+
+name: blind-listen-ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      EXPECTED_MIN: 105
+      # Pin kept in lockstep with the install-hint text in scripts/ci-run-tests.mjs.
+      PLAYWRIGHT_VERSION: 1.61.1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      # CI-only, deliberately unsaved: the repo ships no package.json and the
+      # zero-dependency claim must stay true (node_modules is gitignored).
+      - name: install playwright (CI-only, pinned)
+        run: npm install --no-save --no-package-lock --no-audit --no-fund "playwright@${PLAYWRIGHT_VERSION}"
+      - name: install chromium
+        run: npx playwright install --with-deps chromium
+      - name: headless harness with floor gate
+        run: node scripts/ci-run-tests.mjs
