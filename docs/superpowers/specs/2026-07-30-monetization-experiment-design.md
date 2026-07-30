@@ -95,3 +95,4 @@ Results require traffic. Post-ship launch push — channel selection is Watson's
 
 - **Awaiting Watson's confirm (non-blocking, one-line revert):** Close Session routes through the reveal before refreshing (§3), rather than refreshing immediately.
 - Modal copy tone is drafted at implementation and tweakable at visual review.
+- **Phase 2 direction parked 2026-07-30** (desktop app + video auditioner; the $19 tier may later become a downloadable exe and retire the license-key infra) → see `2026-07-30-phase-2-desktop-video-parking.md` before implementing Task 6/7, in case that decision has since landed.
