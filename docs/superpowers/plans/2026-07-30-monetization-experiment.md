@@ -169,11 +169,18 @@ Append to `test-runner.html` before the "Final summary" block (line ~1345), and 
   await test('GATE-008', 'Extension clamps negative remainder to zero first', () => {
     assert(applyExtension_pure(-5) === 600, `Expected 600, got ${applyExtension_pure(-5)}`);
   });
+
+  await test('GATE-009', 'Bypass detected: timer ended, seconds restored, not pro', () => {
+    assert(bypassDetected_pure(true, 500, 'free') === true, 'tampered state should flag');
+    assert(bypassDetected_pure(false, 500, 'free') === false, 'normal mid-session is fine');
+    assert(bypassDetected_pure(true, 0, 'free') === false, 'still-gated state is fine');
+    assert(bypassDetected_pure(true, 500, 'pro') === false, 'pro is never a bypass');
+  });
 ```
 
-- [ ] **Step 2: Run tests to verify the 12 new tests fail**
+- [ ] **Step 2: Run tests to verify the 13 new tests fail**
 
-Open `test-runner.html`. Expected: 105 passed, 12 failed (ENT-001..004, GATE-001..008).
+Open `test-runner.html`. Expected: 105 passed, 13 failed (ENT-001..004, GATE-001..009).
 
 - [ ] **Step 3: Create `js/config.js`**
 
@@ -237,6 +244,13 @@ function licenseCacheValid_pure(validatedAt, now) {
   return typeof validatedAt === 'number' && validatedAt <= now && now - validatedAt < LICENSE_CACHE_MS;
 }
 
+// Tamper telemetry, not enforcement (spec §4): flags the common console tamper
+// (sessionSeconds restored after the gate fired, no verified grant) so the
+// case study can report a bypass rate instead of pretending it's zero.
+function bypassDetected_pure(timerEndedOnce, seconds, tier) {
+  return timerEndedOnce === true && seconds > 0 && tier !== 'pro';
+}
+
 function loadStoredLicense() {
   try {
     const raw = localStorage.getItem(LICENSE_STORAGE_KEY);
@@ -253,7 +267,7 @@ function clearLicense() {
 }
 ```
 
-- [ ] **Step 6: Copy the six `*_pure` functions into `test-runner.html`'s copy section** (replacing the failing stubs), under `// From js/entitlements.js`, together with the `LICENSE_CACHE_MS` and `EXTENSION_SECONDS` constants they close over.
+- [ ] **Step 6: Copy the seven `*_pure` functions into `test-runner.html`'s copy section** (replacing the failing stubs), under `// From js/entitlements.js`, together with the `LICENSE_CACHE_MS` and `EXTENSION_SECONDS` constants they close over.
 
 - [ ] **Step 7: Wire script tags**
 
@@ -281,7 +295,7 @@ Immediately after the `js/config.js` tag, add the PostHog loader (guarded — a 
 
 - [ ] **Step 8: Run tests to verify all pass**
 
-Open `test-runner.html`. Expected: 117 passed, 0 failed. Also open `index.html`, confirm no console errors on load and a normal session still starts.
+Open `test-runner.html`. Expected: 118 passed, 0 failed. Also open `index.html`, confirm no console errors on load and a normal session still starts.
 
 - [ ] **Step 9: Also change Task 1's literals to the new constants**
 
@@ -291,7 +305,7 @@ Open `test-runner.html`. Expected: 117 passed, 0 failed. Also open `index.html`,
 
 ```bash
 git add js/config.js js/analytics.js js/entitlements.js js/app.js index.html test-runner.html
-git commit -m "feat: config/analytics/entitlements modules with pure gate logic (12 tests)"
+git commit -m "feat: config/analytics/entitlements modules with pure gate logic (13 tests)"
 ```
 
 ---
@@ -401,11 +415,18 @@ function sessionGateActive() {
   return timerStarted && sessionSeconds <= 0 && currentTier !== 'pro';
 }
 
-gateDismissBtn.addEventListener('click', hideGateModal);
-gateModal.addEventListener('click', (e) => { if (e.target === gateModal) hideGateModal(); });
+// Dismissal (Esc / × / backdrop) is tracked separately from purchase-driven
+// hides — an instant dismiss-then-close pattern is the funnel's rage-quit signal.
+function dismissGate() {
+  track('gate_dismissed', { trigger: gateTrigger });
+  hideGateModal();
+}
+
+gateDismissBtn.addEventListener('click', dismissGate);
+gateModal.addEventListener('click', (e) => { if (e.target === gateModal) dismissGate(); });
 gateModal.addEventListener('keydown', (e) => {
   e.stopPropagation(); // keep the app's document-level shortcuts out of the modal
-  if (e.key === 'Escape') { hideGateModal(); return; }
+  if (e.key === 'Escape') { dismissGate(); return; }
   if (e.key === 'Tab') {
     const focusables = [...gateModal.querySelectorAll('button')].filter(b => !b.hidden);
     const first = focusables[0], last = focusables[focusables.length - 1];
@@ -467,6 +488,7 @@ function sessionTick() {
     clearInterval(timerInterval);
     timerInterval = null;
     sessionSeconds = 0;
+    timerEndedOnce = true;   // cleared only by a verified extension grant (bypass telemetry)
     updateTimerDisplay();
     if (isPlaying) pause();
     if (timerEndAction_pure(currentTier) === 'gate') {
@@ -475,6 +497,11 @@ function sessionTick() {
     }
   }
 }
+```
+
+Also declare two new globals in `js/app.js`'s State block — `let timerEndedOnce = false;` and `let bypassReported = false;` — and reset BOTH in `resetSessionState()` (FOI-524).
+
+```js
 
 function startSessionTimer() {
   if (timerStarted) return;
@@ -492,19 +519,40 @@ function resumeCountdown() {
 
 Also add `track('timer_warning')` inside `updateTimerDisplay()`'s existing `sessionSeconds <= 120` branch, next to the `announceToScreenReader('2 minutes remaining...')` call (fires once thanks to `lastAnnouncedThreshold`).
 
-- [ ] **Step 6: Lock the transport while gated** — top of `play()` in `js/audio-engine.js` (read the function first; insert as the first statement) and top of `playRef()` in `js/ui.js:195`:
+- [ ] **Step 6: Lock the transport while gated** — top of `play()` in `js/audio-engine.js` (read the function first; insert as the first statements) and top of `playRef()` in `js/ui.js:195`:
 
 ```js
   if (typeof sessionGateActive === 'function' && sessionGateActive()) { showGateModal('timer'); return; }
+  // Tamper telemetry only — playback proceeds (spec §4). Fires once per session.
+  if (typeof bypassDetected_pure === 'function' && !bypassReported &&
+      bypassDetected_pure(timerEndedOnce, sessionSeconds, currentTier)) {
+    bypassReported = true;
+    track('gate_bypassed');
+  }
 ```
 
 (`switchTo()` routes through `play()` only when `wasPlaying`, and Space routes through `playBtn.click()` → `play()`/`playRef()` — both covered by these two guards.)
 
-- [ ] **Step 7: Manual test** — open `index.html`, temporarily set `sessionSeconds = 5` in DevTools console after starting a session, wait for 0:00. Expected: playback pauses, modal appears with all three buttons, Esc dismisses, badge re-opens it, play/Space re-opens it instead of playing, close-session on an un-revealed session reveals then shows the wrap-up bar, Done reloads to the upload screen.
+- [ ] **Step 7: Dev time-warp param** — near the top of `js/app.js` (after the DOM-refs block), honor `?t=<seconds>` on non-production hosts only, so UX testing can reach the gate in seconds:
 
-- [ ] **Step 8: Run the suite** — open `test-runner.html`. Expected: 117 passed, 0 failed.
+```js
+// UX-testing time warp: ?t=15 gives a 15-second free session. Never honored on
+// production hostnames; preview deploys and localhost only. First session only —
+// resetSessionState() returns to FREE_SESSION_SECONDS (acceptable for testing).
+const PROD_HOSTS = ['blind-listen.vercel.app', 'foil.engineering'];
+(function applyTimeWarp() {
+  const t = new URLSearchParams(location.search).get('t');
+  if (!t || PROD_HOSTS.includes(location.hostname)) return;
+  const secs = parseInt(t, 10);
+  if (Number.isFinite(secs) && secs >= 5) sessionSeconds = secs;
+})();
+```
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 8: Manual test** — open `index.html` locally with `?t=15`, start a session, wait for 0:00. Expected: playback pauses, modal appears with all three buttons, Esc dismisses (`[track] gate_dismissed` in console debug), badge re-opens it, play/Space re-opens it instead of playing, close-session on an un-revealed session reveals then shows the wrap-up bar, Done reloads to the upload screen. Tamper check: at the gate, set `sessionSeconds = 500` in the console, press play — playback resumes AND `[track] gate_bypassed` logs once.
+
+- [ ] **Step 9: Run the suite** — open `test-runner.html`. Expected: 118 passed, 0 failed.
+
+- [ ] **Step 10: Commit**
 
 ```bash
 git add js/gate-modal.js js/timer.js js/audio-engine.js js/ui.js index.html
@@ -854,6 +902,7 @@ checkoutChannel.onmessage = async (e) => {
 
 function grantExtension() {
   sessionSeconds = applyExtension_pure(sessionSeconds);
+  timerEndedOnce = false;   // verified grant — re-arms the gate AND the bypass telemetry
   hideGateModal();
   updateTimerDisplay();
   resumeCountdown();
@@ -987,7 +1036,7 @@ git commit -m "feat: Polar checkout flows — new-tab purchase, verified grants,
   });
 ```
 
-- [ ] **Step 2: Run to verify both fail** (function undefined). Expected: 117 passed, 2 failed.
+- [ ] **Step 2: Run to verify both fail** (function undefined). Expected: 118 passed, 2 failed.
 
 - [ ] **Step 3: Implement** — in `js/app.js` State block: `let proElapsedSeconds = 0;` and `let proNudgeShown = false;` + both reset in `resetSessionState()`. In `js/timer.js`:
 
@@ -1047,7 +1096,7 @@ Copy `proNudgeDue_pure` into `test-runner.html` (`// From js/timer.js`).
 
 - [ ] **Step 6: Manual test** — as Pro (DevTools `currentTier='pro'` before starting): timer counts UP from 0:00, no warning colors, no gate at any point; buying Pro mid-gate flips the countdown to count-up seamlessly. Fatigue toast: temporarily set `proElapsedSeconds = 1195` in DevTools, watch it appear once at 20:00 and never again.
 
-- [ ] **Step 7: Run the suite** — Expected: 119 passed, 0 failed.
+- [ ] **Step 7: Run the suite** — Expected: 120 passed, 0 failed.
 
 - [ ] **Step 8: Commit**
 
@@ -1066,14 +1115,14 @@ git commit -m "feat: Pro timer — elapsed count-up with one 20-minute fatigue n
 
 **Interfaces:** none — documentation and gates.
 
-- [ ] **Step 1: Measure and raise the floor** — run `node scripts/ci-run-tests.mjs` (or count in the browser): expected 119 passed. In `.github/workflows/ci.yml` set `EXPECTED_MIN: 119` and append to the header comment's floor log:
+- [ ] **Step 1: Measure and raise the floor** — run `node scripts/ci-run-tests.mjs` (or count in the browser): expected 120 passed. In `.github/workflows/ci.yml` set `EXPECTED_MIN: 120` and append to the header comment's floor log:
 
 ```
-#   2026-07-30: 119 — +14 monetization-experiment tests (ENT-001..004,
-#   GATE-001..008, PRO-001..002); TIM-001 updated for the 6:00 session.
+#   2026-07-30: 120 — +15 monetization-experiment tests (ENT-001..004,
+#   GATE-001..009, PRO-001..002); TIM-001 updated for the 6:00 session.
 ```
 
-If the measured count differs from 119, use the measured number — the floor must equal reality, and the delta line must say what it covers.
+If the measured count differs from 120, use the measured number — the floor must equal reality, and the delta line must say what it covers.
 
 - [ ] **Step 2: CHANGELOG entry** (plain-language, user-facing, no ticket refs in top bullets — house style):
 
@@ -1111,7 +1160,11 @@ Spec: `docs/superpowers/specs/2026-07-30-monetization-experiment-design.md`.
 
 - [ ] **Step 4: Update the project `CLAUDE.md`** — Status line (append "monetization experiment shipped <date>"), Key Files (add `js/config.js`, `js/analytics.js`, `js/entitlements.js`, `js/gate-modal.js`, `js/checkout.js`, `api/`, `checkout-success.html`), replace the "PAID_GATE Locations (currently all ungated)" section with the live gate description + env var list (`POLAR_*`, PostHog key location), and note the sandbox→production flip requirement.
 
-- [ ] **Step 5: Full manual QA sweep** (spec §9 checklist) on the preview deploy, BOTH origins (blind-listen.vercel.app and foil.engineering/blindlisten — the second exercises CORS): gate at 0:00 · Esc/× dismiss · badge re-open · close on un-revealed → reveal → wrap-up → reload · close on revealed → immediate reload · extension purchase → +10:00 counts down → second gate at 0:00 · Pro purchase → count-up · reload keeps Pro · cleared storage + manual key entry → Pro · text export free at every point · keyboard: Space while gated re-opens modal, R still reveals · screen reader announcements fire.
+- [ ] **Step 5: Full manual QA sweep** (spec §9 checklist) on the preview deploy, BOTH origins (blind-listen.vercel.app and foil.engineering/blindlisten — the second exercises CORS): gate at 0:00 · Esc/× dismiss · badge re-open · close on un-revealed → reveal → wrap-up → reload · close on revealed → immediate reload · extension purchase → +10:00 counts down → second gate at 0:00 · Pro purchase → count-up · reload keeps Pro · cleared storage + manual key entry → Pro · text export free at every point · keyboard: Space while gated re-opens modal, R still reveals · screen reader announcements fire · modal usable at 375px width.
+
+- [ ] **Step 5b: Adversarial half-hour** (Watson as hostile user, on the preview deploy with DevTools; expected outcomes written BEFORE attacking): delete the modal node (expected: transport stays locked — the lock is `sessionGateActive()` state, not DOM) · restore `sessionSeconds = 500` and play (expected: plays, `gate_bypassed` fires once — leakage, measured) · forge `localStorage.bl_license` with a fake key (expected: Pro this load, background revalidation downgrades and clears it) · block `/api/*` requests (expected: purchases fail safely with the announcer message, nothing granted, app keeps working free) · block PostHog (expected: zero behavior change). Any outcome outside "leakage-only" — a broken purchase, stuck UI, or fake Pro surviving revalidation — is a release blocker. Write results into `docs/experiment-log.md` as the threat-model entry.
+
+- [ ] **Step 5c: Cold-eyes hallway test** — 1–2 producer friends hit the gate unbriefed (use `?t=60` on the preview URL); record reactions verbatim, defer analysis (recorder mode). The gate moment's emotional tone is the experiment's top UX risk — this is the go/adjust input for modal copy before launch.
 
 - [ ] **Step 6: Commit**
 

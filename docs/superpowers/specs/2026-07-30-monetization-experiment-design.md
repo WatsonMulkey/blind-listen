@@ -43,12 +43,12 @@
 - **Hard constraint: checkout must not unload the session page** — the app holds decoded AudioBuffers in memory. Preferred: Polar embedded/overlay checkout if the current API supports it; fallback: open hosted checkout in a new tab → on success the original tab polls `/api/checkout-status?id=…` → Vercel function verifies the checkout with the Polar API → grant applied. Verify which path Polar supports at implementation time.
 - **Session Extension grant:** server-verified once, then in-memory `sessionSeconds += 600` (+ event). No persistence by design.
 - **Pro grant:** license key from Polar → stored in `localStorage` → validated on app load via `/api/validate-license` (Vercel function; Polar secret lives server-side only). Last-good validation cached 7 days for offline grace. Manual "Enter license key" input for additional browsers.
-- **Enforcement honesty:** all gates are client-side and devtools-bypassable. Accepted trade-off at these stakes ("keeps honest people honest"), and stated openly in the case study.
+- **Enforcement honesty / threat model:** all gates are client-side and devtools-bypassable. Accepted trade-off at these stakes ("keeps honest people honest"), and stated openly in the case study. The distinction that keeps this out of vibe-code-security territory: bypass = **revenue leakage** (a non-buyer listens free), never a **breach** — there are no accounts, no PII, no server database, audio never leaves the browser, prices live in Polar's hosted checkout (client never sends a price), the Polar token is server-side only, and grants only follow server-side verification of a completed checkout. Deleting the modal does NOT unlock playback (the lock is app state, not DOM). Tampering we can't prevent we **measure**: a `gate_bypassed` telemetry flag fires when the timer has ended but playback resumes with restored seconds and no verified grant — the case study reports a bypass rate instead of pretending it's zero.
 - **New infrastructure:** an `api/` directory (this project's first Vercel serverless functions) and Polar API secret in Vercel env vars. No database, no auth.
 
 ## 5. Instrumentation (the case-study data)
 
-Events: `session_start`, `timer_warning`, `timer_end`, `gate_shown` (trigger: `timer|lufs|lockin|pdf`), `extend_clicked`, `pro_clicked`, `checkout_opened` (product), `checkout_completed` (product), `close_session_clicked` (with `revealed: true|false`), `license_activated`.
+Events: `session_start`, `timer_warning`, `timer_end`, `gate_shown` (trigger: `timer|lufs|lockin|pdf`), `gate_dismissed` (trigger — the Esc/× "let me think" path; an immediate dismiss-then-close pattern is the rage-quit signal), `extend_clicked`, `pro_clicked`, `checkout_opened` (product), `checkout_completed` (product), `close_session_clicked` (with `revealed: true|false`), `license_activated`, `gate_bypassed` (tamper telemetry, once per session).
 
 - **Sink:** Vercel Web Analytics custom events if the current plan supports them; otherwise PostHog free tier. Decide at implementation after checking the Vercel plan — either is a one-file change.
 - **Revenue truth:** the Polar dashboard.
@@ -76,6 +76,12 @@ Results require traffic. Post-ship launch push — channel selection is Watson's
 
 - New logic units — timer/gate state machine, entitlement store, license-validation function — get tests in the existing harness (`test-runner.html` / `scripts/ci-run-tests.mjs`). CI test-count floor is additive-only (ADR-033).
 - Manual QA checklist includes: gate fires at 0:00 of a 6:00 session; Esc/× dismiss path; Close on an un-revealed session routes through reveal then refreshes; Close on a revealed session refreshes directly; extension credit applies and stacks; reload behavior (extension lost, Pro retained); new-tab checkout return flow; offline license grace; modal a11y.
+- **UX test plan** (pre-launch, on the preview deploy):
+  - **Time-warp param**: `?t=<seconds>` shortens the free session on localhost/preview hosts only (never honored on production hostnames), so the gate is reachable in seconds, repeatedly.
+  - **Adversarial half-hour** (Watson as hostile user, scripted): delete the modal in DevTools, restore `sessionSeconds`, forge the `bl_license` localStorage entry, block the `/api/*` calls, block PostHog. Expected results per attack are written down beforehand; every outcome must be leakage-only (free listening), never a broken purchase, a stuck UI, or a fake Pro that survives revalidation. Findings go in the experiment log as the case study's threat-model section.
+  - **Cold-eyes hallway test**: 1–2 producer friends hit the gate with no briefing; record reactions verbatim (recorder mode) — the gate moment's emotional tone is the top UX risk of the whole experiment.
+  - **Funnel telemetry as ongoing UX test**: `gate_shown → gate_dismissed / close_session_clicked / extend_clicked / pro_clicked` ratios; instant dismiss-then-close reads as rage-quit.
+  - A11y pass (keyboard-only + screen reader) and a small-screen check of the modal.
 - Existing timer tests asserting the 600-second default must be updated to 360 — a legitimate behavior-change edit (test *count* floor unaffected; the ADR-033 test-edit ask-gate may prompt).
 
 ## 10. Rollout / workflow protocol
