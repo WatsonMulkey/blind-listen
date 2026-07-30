@@ -1,6 +1,6 @@
 # Blind Listen — Blind Mix Comparison Tool
 
-## Status: Active — Phase 1 + v1.1.0 (Ableton integration via Web Launcher) live 2026-05-17
+## Status: Active — Phase 1 + v1.1.0 live; monetization experiment specced+planned 2026-07-30 and PARKED pre-execution (pickup: `docs/superpowers/specs/2026-07-30-phase-2-desktop-video-parking.md`)
 
 ## What This Is
 Browser-based blind listening test for comparing audio mixes. Load 2–5 audio files, switch between them with hidden identities, loop sections, jot notes, then reveal. Features LUFS metering, level matching, spectrogram, lock-in reshuffle, reference track, and text/PDF export. Free tier is 100% client-side (no server, no cost). Paid tier and Session Mode add backend when demand proves out.
