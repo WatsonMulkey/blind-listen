@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-30
 **Status:** Draft — awaiting Watson review
-**Relations:** Builds on ADR-005 (paid-tier sketch). Supersedes two of its resolutions: (1) the soft-stop-at-0:00 timer behavior, (2) the Supabase-Auth-based Phase 2 architecture. The Phase 2 "active users first" gate is consciously overridden: the goals have changed — the build itself (payments-stack learning) and the published story (FOIL case study) are the point; demand-proof is now an *output* of the experiment, not a precondition.
+**Relations:** Builds on ADR-005 (paid-tier sketch). Supersedes three of its resolutions: (1) the 10:00 free session length (now 6:00), (2) the soft-stop-at-0:00 timer behavior, (3) the Supabase-Auth-based Phase 2 architecture. The Phase 2 "active users first" gate is consciously overridden: the goals have changed — the build itself (payments-stack learning) and the published story (FOIL case study) are the point; demand-proof is now an *output* of the experiment, not a precondition.
 
 ## 1. Goals
 
@@ -21,18 +21,21 @@
 
 **Anchoring rationale (deliberate, disclosed in the case study):** the $5 extension functions partly as a decoy/anchor — four overtime sessions cost more than lifetime, so presenting both makes $19 read as obviously correct. One-time pricing (no subscription) is itself a differentiator for a subscription-fatigued audio audience.
 
-**Free tier** — unchanged except the timer-end enforcement in §3: 10:00 session, blind comparison of 2–5 mixes, looping, level matching (stays free; only the numeric LUFS *metering display* is gated), notes, reveal, basic reshuffle, text export, unlimited new sessions.
+**Free tier** — 6:00 session (shortened from 10:00 — rationale in §3), blind comparison of 2–5 mixes, looping, level matching (stays free; only the numeric LUFS *metering display* is gated), notes, reveal, basic reshuffle, text export, unlimited new sessions (via close/refresh).
 
-## 3. Timer-end mechanic (the one real free-tier behavior change)
+## 3. Timer-end mechanic (the free-tier behavior changes)
 
-- Countdown, thresholds, and screen-reader announcements unchanged (amber at 2:00, critical at 0:30).
-- **At 0:00: playback pauses (as today) and a gate modal appears (new).** Listening cannot continue *within this session* without a purchase — this replaces today's silent press-play-to-continue, which made the timer purely advisory and would make a paid extension meaningless.
-- Modal contents (every interaction tracked): primary buttons **[Add 10 minutes — $5]** and **[Pro forever — $19]**; quiet free links **[Reveal & wrap up]** and **[Start a new session]**; dismissible (×/Esc).
-- Dismissing returns to the ended state: transport disabled, but reveal, notes, text export, and new-session remain fully available. Modal re-openable via the timer badge.
-- **No page reset, ever.** Buffers, shuffle, and notes are always preserved. A reset would invalidate the blind test (data loss mid-experiment) *and* destroy the purchasable moment — the gate achieves the monetization without either.
-- Accessibility: focus-trapped modal, Esc to dismiss, announcements via the existing `srAnnouncer` element.
+- **Free session length: 6:00** (`sessionSeconds = 360`, init + reset sites in `js/app.js`) — shortened from 10:00 as part of this experiment. Two honest notes, both destined for the case study: (a) this is a free-tier reduction relative to the shipped tool — disclosed, not hidden; (b) it materially raises gate exposure: at 10:00 most sessions likely finish before the timer fires, so the gate would rarely be seen; at 6:00 the gate — the thing the experiment measures — actually gets impressions.
+- Countdown thresholds and screen-reader announcements unchanged (amber at 2:00, critical at 0:30 — proportions still sensible at 6:00).
+- **At 0:00: playback stops and the "Time's up" modal appears.** Continued listening within this session is paid-only — this replaces today's silent press-play-to-continue, which made the timer purely advisory and would make a paid extension meaningless.
+- Modal — exactly three options (every interaction tracked):
+  1. **Add 10 more minutes — $5**
+  2. **Buy lifetime license — $19** (copy lists: no timer, LUFS metering, lock-in reshuffle, PDF export)
+  3. **Close session**
+- **Close session routes through the reveal before clearing** — the one deliberate deviation from "refresh immediately," awaiting Watson's confirmation: if the session is un-revealed, Close first shows the standard reveal screen (identities + notes + free text export), then a "Done — clear session" action performs the page refresh. Reason: a raw refresh on an un-revealed session destroys the blind test's payoff and the user's notes, and neither paid option claims to sell the reveal — so withholding it would be an accident, not a mechanic. Monetization is identical either way (no free listening past 6:00). If already revealed, Close refreshes directly. The refresh doubles as the free new-session path (fresh upload screen, fresh 6:00).
+- Modal a11y: focus-trapped; Esc/× dismisses to the ended state (transport locked; timer badge re-opens the modal). Dismissal sells nothing short — it's "let me think" — and WCAG requires an escape hatch. Announcements via the existing `srAnnouncer` element.
 - **Pro behavior:** countdown replaced by an elapsed count-up; one gentle, non-blocking ear-fatigue nudge (toast) at 20:00 per session — the tool keeps its opinion without a gate.
-- **Extension behavior:** countdown resets to 10:00; at the next 0:00 the gate re-fires (repeat purchase allowed).
+- **Extension behavior:** countdown resets to 10:00 of granted time; at the next 0:00 the gate re-fires (repeat purchase allowed).
 
 ## 4. Payments architecture
 
@@ -45,7 +48,7 @@
 
 ## 5. Instrumentation (the case-study data)
 
-Events: `session_start`, `timer_warning`, `timer_end`, `gate_shown` (trigger: `timer|lufs|lockin|pdf`), `extend_clicked`, `pro_clicked`, `checkout_opened` (product), `checkout_completed` (product), `wrapup_clicked`, `new_session_clicked`, `license_activated`.
+Events: `session_start`, `timer_warning`, `timer_end`, `gate_shown` (trigger: `timer|lufs|lockin|pdf`), `extend_clicked`, `pro_clicked`, `checkout_opened` (product), `checkout_completed` (product), `close_session_clicked` (with `revealed: true|false`), `license_activated`.
 
 - **Sink:** Vercel Web Analytics custom events if the current plan supports them; otherwise PostHog free tier. Decide at implementation after checking the Vercel plan — either is a one-file change.
 - **Revenue truth:** the Polar dashboard.
@@ -72,7 +75,8 @@ Results require traffic. Post-ship launch push — channel selection is Watson's
 ## 9. Testing
 
 - New logic units — timer/gate state machine, entitlement store, license-validation function — get tests in the existing harness (`test-runner.html` / `scripts/ci-run-tests.mjs`). CI test-count floor is additive-only (ADR-033).
-- Manual QA checklist includes: gate fires at 0:00; all dismiss paths; extension credit applies and stacks; reload behavior (extension lost, Pro retained); new-tab checkout return flow; offline license grace; modal a11y.
+- Manual QA checklist includes: gate fires at 0:00 of a 6:00 session; Esc/× dismiss path; Close on an un-revealed session routes through reveal then refreshes; Close on a revealed session refreshes directly; extension credit applies and stacks; reload behavior (extension lost, Pro retained); new-tab checkout return flow; offline license grace; modal a11y.
+- Existing timer tests asserting the 600-second default must be updated to 360 — a legitimate behavior-change edit (test *count* floor unaffected; the ADR-033 test-edit ask-gate may prompt).
 
 ## 10. Rollout / workflow protocol
 
@@ -83,4 +87,5 @@ Results require traffic. Post-ship launch push — channel selection is Watson's
 
 ## 11. Open questions
 
-None blocking. Modal copy tone is drafted at implementation and tweakable at visual review.
+- **Awaiting Watson's confirm (non-blocking, one-line revert):** Close Session routes through the reveal before refreshing (§3), rather than refreshing immediately.
+- Modal copy tone is drafted at implementation and tweakable at visual review.
