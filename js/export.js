@@ -1,5 +1,6 @@
 // ─── Export Results ───────────────────────────────────────────
-// PAID_GATE: PDF export (ungated for now — all users get this)
+// PAID_GATE: PDF export is gated Pro below (exportPdfBtn handler, spec §2).
+// Text export (exportTxtBtn/exportCopyBtn) stays free.
 
 // FOI-526: one data-derivation path for both text + PDF exports (were duplicated, and the PDF
 // copy silently dropped RMS). FOI-522: the consistency verdict is gated on hasReshuffled here.
@@ -116,6 +117,7 @@ exportTxtBtn.addEventListener('click', () => {
 
 // Download PDF
 exportPdfBtn.addEventListener('click', () => {
+  if (currentTier !== 'pro') { showGateModal('pdf'); return; }
   if (typeof window.jspdf === 'undefined') {
     console.warn('jsPDF not loaded');
     return;

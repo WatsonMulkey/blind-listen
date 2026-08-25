@@ -1,5 +1,6 @@
 // ─── Metering (ITU-R BS.1770-4 LUFS) ─────────────────────────
-// PAID_GATE: LUFS metering (ungated for now — all users get this)
+// PAID_GATE: computeAllMetering()/level matching stay FREE (spec §2) —
+// only renderMixStats()'s numeric display is gated Pro, below.
 
 function getKWeightStage1(fs) {
   const db = 3.999843853973347;
@@ -140,6 +141,11 @@ async function computeAllMetering() {
 }
 
 function renderMixStats() {
+  if (currentTier !== 'pro') {
+    mixStatsRow.innerHTML = '<button class="lufs-locked" id="lufsLockedBtn" aria-label="LUFS metering is a Pro feature">🔒 LUFS · peak · RMS — Pro</button>';
+    document.getElementById('lufsLockedBtn').addEventListener('click', () => showGateModal('lufs'));
+    return;
+  }
   mixStatsRow.innerHTML = '';
   for (let i = 0; i < shuffleMap.length; i++) {
     const fileIdx = shuffleMap[i];

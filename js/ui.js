@@ -79,7 +79,8 @@ function buildUI() {
 }
 
 function toggleLock(btnIndex) {
-  // PAID_GATE: lock-in reshuffle (ungated for now — all users get this)
+  // Pro gate: lock-in pick + consistency flow (spec §2) — reshuffleBtn stays free
+  if (currentTier !== 'pro') { showGateModal('lockin'); return; }
   if (revealed) return;
   if (lockedBtnIndex === btnIndex) {
     // Unfavorite
