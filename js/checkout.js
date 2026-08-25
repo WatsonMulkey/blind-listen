@@ -23,21 +23,58 @@ function openCheckout(product) {
   window.open(url, '_blank');
 }
 
-// Verification is idempotent per checkoutId: BroadcastChannel and postMessage
-// both land on this same tab (same-origin case fires both), so without this
-// guard a single successful checkout would grant twice. Adding to the Set
-// happens synchronously before the first await, so two near-simultaneous
-// deliveries of the same id can't both slip through.
+// FIX ROUND 1 (2026-08-25) — Task review finding: the original guard added
+// checkoutId to processedCheckoutIds BEFORE the response was evaluated and
+// never removed it. Task 6's checkout-status maps Polar's 'confirmed'
+// ("user clicked Pay, still processing") to 'open', and returns 502 when
+// Polar is unreachable — so a first check landing on either PERMANENTLY
+// poisoned that checkoutId for the page session. Dual-channel redelivery
+// can't help: it lands inside the same guard. For Pro the buyer can recover
+// via "Enter license key"; for Extend it was a lost $5 with no path back.
+//
+// Fix: only a TERMINAL outcome (succeeded -> granted; expired -> dead) is
+// permanent. 'open' gets a bounded internal retry (Polar's 'confirmed'
+// resolves on its own within seconds — no user action needed). A 502/
+// network failure is never poisoned at all — the id stays retryable via
+// a fresh delivery (the user clicking "Add 10 minutes" again re-checks the
+// same id since the button re-opens the same still-open checkout tab, or a
+// duplicate BroadcastChannel/postMessage delivery of the same id).
 const processedCheckoutIds = new Set();
 
-async function verifyCheckout(checkoutId) {
-  if (!checkoutId || processedCheckoutIds.has(checkoutId)) return;
-  processedCheckoutIds.add(checkoutId);
+// Short-lived in-flight lock, separate from processedCheckoutIds — added at
+// the start of a check, released in `finally`. Guards the TRUE concurrent-
+// duplicate race (both channels firing for the same id in the same tick,
+// before either fetch resolves) without permanently poisoning a
+// non-terminal id the way processedCheckoutIds does.
+const inFlightCheckoutIds = new Set();
+
+const OPEN_RETRY_DELAY_MS = 3000;
+const OPEN_RETRY_MAX_ATTEMPTS = 5;
+
+async function verifyCheckout(checkoutId, attempt = 0) {
+  if (!checkoutId || processedCheckoutIds.has(checkoutId) || inFlightCheckoutIds.has(checkoutId)) return;
+  inFlightCheckoutIds.add(checkoutId);
   try {
     const r = await fetch(`${API_BASE}/checkout-status?id=${encodeURIComponent(checkoutId)}`);
     if (!r.ok) throw new Error(`status ${r.status}`);
     const data = await r.json();
-    if (data.status !== 'succeeded') return;
+
+    if (data.status === 'expired') {
+      processedCheckoutIds.add(checkoutId);   // terminal — dead, never retry
+      return;
+    }
+    if (data.status !== 'succeeded') {
+      // 'open' — includes Polar's 'confirmed' (payment mid-processing, not
+      // yet a final answer). NOT terminal: bounded retry instead of poisoning.
+      if (attempt < OPEN_RETRY_MAX_ATTEMPTS) {
+        setTimeout(() => verifyCheckout(checkoutId, attempt + 1), OPEN_RETRY_DELAY_MS);
+      } else {
+        announceToScreenReader('Payment still processing — if it completes, click Add 10 minutes again or use Enter license key.');
+      }
+      return;
+    }
+
+    processedCheckoutIds.add(checkoutId);   // terminal — succeeded, grant now
     track('checkout_completed', { product: data.product });
     if (data.product === 'extend') grantExtension();
     if (data.product === 'pro') {
@@ -45,8 +82,11 @@ async function verifyCheckout(checkoutId) {
       else promptLicenseEntry('Payment confirmed — paste the license key from your email to activate Pro.');
     }
   } catch (err) {
+    // 502 / network failure: do NOT poison — leave the id retryable.
     console.warn('checkout verification failed:', err.message);
     announceToScreenReader('Purchase verification failed — if you paid, use Enter license key or add minutes again.');
+  } finally {
+    inFlightCheckoutIds.delete(checkoutId);
   }
 }
 
