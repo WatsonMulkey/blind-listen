@@ -1,7 +1,7 @@
 # Blind Listen Monetization Experiment — Design
 
 **Date:** 2026-07-30
-**Status:** Draft — awaiting Watson review
+**Status:** Approved (Watson, 2026-07-30) — **BUILT 2026-08-25 @ `a002491`** on `watson/monetization-experiment` (unmerged; launch gates: Polar sandbox E2E → QA sweep → Watson visual review → merge). ADR-037. Running record: `docs/experiment-log.md`.
 **Relations:** Builds on ADR-005 (paid-tier sketch). Supersedes three of its resolutions: (1) the 10:00 free session length (now 6:00), (2) the soft-stop-at-0:00 timer behavior, (3) the Supabase-Auth-based Phase 2 architecture. The Phase 2 "active users first" gate is consciously overridden: the goals have changed — the build itself (payments-stack learning) and the published story (FOIL case study) are the point; demand-proof is now an *output* of the experiment, not a precondition.
 
 ## 1. Goals

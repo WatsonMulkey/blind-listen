@@ -1,5 +1,7 @@
 # Blind Listen Monetization Experiment — Implementation Plan
 
+> **OUTCOME: BUILT 2026-08-25 @ `a002491`** — all 9 tasks executed subagent-driven with per-task review + final whole-branch review + fix wave; suite 120/0. Unmerged pending Watson's launch gates (see `docs/experiment-log.md` pending items). Known plan errata found in execution: Task 6 heading was fused to a `---` (extractor-invisible); expected counts "117"/"119" were arithmetic drift (measured 118/120 governed); Task 3's CSS `--bg-panel` token doesn't exist (real tokens used); BroadcastChannel-only delivery was insufficient for the proxy/subdomain origins (dual-channel shipped).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Ship the 2026-07-30 monetization experiment: 6:00 free sessions ending in a 3-option paywall modal ($5 session extension / $19 lifetime Pro / close session), Polar.sh checkout with no accounts, full funnel instrumentation.

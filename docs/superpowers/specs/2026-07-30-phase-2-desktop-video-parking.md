@@ -2,6 +2,7 @@
 
 **Date parked:** 2026-07-30
 **Status:** PARKED by Watson ("document all of this for now to pick up later") — nothing here is in build.
+**Pickup outcome 2026-08-24/25:** checklist items 1–4 resolved — Phase 1 executed (subagent-driven) and **BUILT @ `a002491`**; desktop-replaces-web-Pro still undecided (deferred to the Phase 2 brainstorm); video spike approved for **after Phase 1 ships**. Item 5 (EIN → Azure signing → Phase 2 ADR) unchanged. Phase 2 itself remains parked.
 **Companion docs:** Phase 1 spec `2026-07-30-monetization-experiment-design.md` + plan `../plans/2026-07-30-monetization-experiment.md` (both committed, execution NOT started).
 
 ## Where the session ended
