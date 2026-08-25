@@ -474,6 +474,37 @@ async function computeLUFS_browser(sampleRate, pcmData) {
   return -0.691 + 10 * Math.log10(finalPower);
 }
 
+// From js/entitlements.js
+const LICENSE_CACHE_MS = 7 * 24 * 60 * 60 * 1000;
+const EXTENSION_SECONDS = 600;
+
+function timerEndAction_pure(tier) {
+  return tier === 'pro' ? 'none' : 'gate';
+}
+
+function closeSessionRoute_pure(isRevealed) {
+  return isRevealed ? 'refresh' : 'reveal-first';
+}
+
+function gateOptionsFor_pure(trigger) {
+  return trigger === 'timer' ? ['extend', 'pro', 'close'] : ['pro'];
+}
+
+function applyExtension_pure(seconds) {
+  return Math.max(0, seconds) + EXTENSION_SECONDS;
+}
+
+function licenseCacheValid_pure(validatedAt, now) {
+  return typeof validatedAt === 'number' && validatedAt <= now && now - validatedAt < LICENSE_CACHE_MS;
+}
+
+// Tamper telemetry, not enforcement (spec §4): flags the common console tamper
+// (sessionSeconds restored after the gate fired, no verified grant) so the
+// case study can report a bypass rate instead of pretending it's zero.
+function bypassDetected_pure(timerEndedOnce, seconds, tier) {
+  return timerEndedOnce === true && seconds > 0 && tier !== 'pro';
+}
+
 // ═══════════════════════════════════════════════════════════
 // SIGNAL GENERATORS (for deterministic audio tests)
 // ═══════════════════════════════════════════════════════════
@@ -1339,6 +1370,73 @@ async function runAllTests() {
     assert(isCritical(1), '1s is critical');
     assert(isCritical(0), '0s is critical');
     assert(!isCritical(31), '31s is not critical');
+  });
+
+
+  // ─── Suite: Entitlements — license cache validity ─────────
+  suite('ENTITLEMENTS — license cache validity');
+
+  await test('ENT-001', 'Fresh validation (1 day old) is valid', () => {
+    const day = 24 * 60 * 60 * 1000;
+    assert(licenseCacheValid_pure(Date.now() - day, Date.now()) === true, '1-day-old cache should be valid');
+  });
+
+  await test('ENT-002', 'Stale validation (8 days old) is invalid', () => {
+    const day = 24 * 60 * 60 * 1000;
+    assert(licenseCacheValid_pure(Date.now() - 8 * day, Date.now()) === false, '8-day-old cache should be invalid');
+  });
+
+  await test('ENT-003', 'Future-dated validation is invalid (clock tamper)', () => {
+    assert(licenseCacheValid_pure(Date.now() + 60_000, Date.now()) === false, 'future validatedAt should be invalid');
+  });
+
+  await test('ENT-004', 'Non-numeric validatedAt is invalid', () => {
+    assert(licenseCacheValid_pure(undefined, Date.now()) === false, 'undefined should be invalid');
+    assert(licenseCacheValid_pure('yesterday', Date.now()) === false, 'string should be invalid');
+  });
+
+  suite('GATE LOGIC — timer end, close-session routing, options');
+
+  await test('GATE-001', 'Free tier at timer end gates', () => {
+    assert(timerEndAction_pure('free') === 'gate', `Expected 'gate', got '${timerEndAction_pure('free')}'`);
+  });
+
+  await test('GATE-002', 'Pro tier at timer end does not gate', () => {
+    assert(timerEndAction_pure('pro') === 'none', `Expected 'none', got '${timerEndAction_pure('pro')}'`);
+  });
+
+  await test('GATE-003', 'Close on un-revealed session routes through reveal', () => {
+    assert(closeSessionRoute_pure(false) === 'reveal-first', 'un-revealed must reveal first');
+  });
+
+  await test('GATE-004', 'Close on revealed session refreshes directly', () => {
+    assert(closeSessionRoute_pure(true) === 'refresh', 'revealed goes straight to refresh');
+  });
+
+  await test('GATE-005', 'Timer trigger offers extend + pro + close', () => {
+    const opts = gateOptionsFor_pure('timer');
+    assert(JSON.stringify(opts) === JSON.stringify(['extend', 'pro', 'close']), `got ${JSON.stringify(opts)}`);
+  });
+
+  await test('GATE-006', 'Feature triggers offer pro only', () => {
+    for (const t of ['lufs', 'lockin', 'pdf']) {
+      assert(JSON.stringify(gateOptionsFor_pure(t)) === JSON.stringify(['pro']), `trigger ${t} should be pro-only`);
+    }
+  });
+
+  await test('GATE-007', 'Extension adds 600 seconds from zero', () => {
+    assert(applyExtension_pure(0) === 600, `Expected 600, got ${applyExtension_pure(0)}`);
+  });
+
+  await test('GATE-008', 'Extension clamps negative remainder to zero first', () => {
+    assert(applyExtension_pure(-5) === 600, `Expected 600, got ${applyExtension_pure(-5)}`);
+  });
+
+  await test('GATE-009', 'Bypass detected: timer ended, seconds restored, not pro', () => {
+    assert(bypassDetected_pure(true, 500, 'free') === true, 'tampered state should flag');
+    assert(bypassDetected_pure(false, 500, 'free') === false, 'normal mid-session is fine');
+    assert(bypassDetected_pure(true, 0, 'free') === false, 'still-gated state is fine');
+    assert(bypassDetected_pure(true, 500, 'pro') === false, 'pro is never a bypass');
   });
 
 
