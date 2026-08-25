@@ -505,6 +505,11 @@ function bypassDetected_pure(timerEndedOnce, seconds, tier) {
   return timerEndedOnce === true && seconds > 0 && tier !== 'pro';
 }
 
+// From js/timer.js
+function proNudgeDue_pure(elapsedSeconds, nudgeShown) {
+  return !nudgeShown && elapsedSeconds >= 1200;
+}
+
 // ═══════════════════════════════════════════════════════════
 // SIGNAL GENERATORS (for deterministic audio tests)
 // ═══════════════════════════════════════════════════════════
@@ -1437,6 +1442,19 @@ async function runAllTests() {
     assert(bypassDetected_pure(false, 500, 'free') === false, 'normal mid-session is fine');
     assert(bypassDetected_pure(true, 0, 'free') === false, 'still-gated state is fine');
     assert(bypassDetected_pure(true, 500, 'pro') === false, 'pro is never a bypass');
+  });
+
+  suite('PRO TIMER — count-up + fatigue nudge');
+
+  await test('PRO-001', 'Nudge due exactly at 1200s elapsed, once', () => {
+    assert(proNudgeDue_pure(1200, false) === true, 'due at 1200');
+    assert(proNudgeDue_pure(1199, false) === false, 'not before 1200');
+    assert(proNudgeDue_pure(1300, true) === false, 'never twice');
+  });
+
+  await test('PRO-002', 'Nudge not due for free-tier magnitudes', () => {
+    assert(proNudgeDue_pure(0, false) === false, 'not at start');
+    assert(proNudgeDue_pure(360, false) === false, 'not at the free session length');
   });
 
 

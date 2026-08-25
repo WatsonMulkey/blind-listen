@@ -123,7 +123,7 @@ function activatePro(key) {
   currentTier = 'pro';
   hideGateModal();
   track('license_activated');
-  switchTimerToProMode();       // Task 8; TEMP stub below until then
+  switchTimerToProMode();       // js/timer.js — flips countdown to Pro count-up
   if (typeof renderMixStats === 'function' && player.classList.contains('active')) renderMixStats();
   announceToScreenReader('Pro activated. The session timer is gone for good.');
 }
@@ -193,6 +193,3 @@ initEntitlementsOnLoad();
 
 // Quiet footer link — covers new browsers and any auto-retrieval miss.
 document.getElementById('licenseEntryLink').addEventListener('click', () => promptLicenseEntry());
-
-// TEMP until Task 8 lands — replaced there, remove then.
-if (typeof switchTimerToProMode === 'undefined') { window.switchTimerToProMode = () => {}; }

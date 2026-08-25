@@ -51,6 +51,8 @@ let timerInterval = null;
 let timerStarted = false;
 let timerEndedOnce = false;
 let bypassReported = false;
+let proElapsedSeconds = 0;   // FOI-524: Pro count-up seconds; reset in resetSessionState()
+let proNudgeShown = false;   // FOI-524: one-shot 20-minute fatigue nudge; reset in resetSessionState()
 
 // ─── DOM refs ─────────────────────────────────────────────────
 const uploadZone = document.getElementById('uploadZone');
@@ -205,6 +207,8 @@ function resetSessionState() {
   sessionSeconds = FREE_SESSION_SECONDS;
   timerEndedOnce = false;
   bypassReported = false;
+  proElapsedSeconds = 0;
+  proNudgeShown = false;
 
   // Monetization experiment: currentTier deliberately NOT reset (Pro survives restart);
   // extension minutes live in sessionSeconds and die with the session by design.
