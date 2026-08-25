@@ -89,6 +89,90 @@ At merge: flip both checkout-link success URLs back to
 blind-listen.vercel.app (see the ⚠ above) · 3-origin QA · real purchase +
 refund · production Polar flip.
 
+## 2026-08-25 (adversarial pass) — Threat model: core sound, one money-path bug fixed, one decision owed
+
+Method: a 6-lens adversarial code-audit (each lens an independent attacker plus
+an independent skeptic that tried to refute it — 12 agents, most-capable model)
+run alongside live attacks against the preview deploy in Chrome. Every attack
+was scored against one oracle (spec §9): an outcome is acceptable only if it is
+**leakage** (a non-buyer listens free) and a defect if it is a breach, a stuck
+UI, a fake Pro that survives a real server revalidation, or a broken purchase.
+
+**Verdict: the payment + entitlement core is sound.** No grant happens without a
+real Polar payment, and no forged client state survives a real server check.
+Live-confirmed on the preview:
+- `checkout-status` rejects a bogus/foreign checkout id (502, no grant) and only
+  grants on Polar's own `succeeded` for our product ids (real payment; Polar is
+  merchant of record). `validate-license` returns `{valid:false}` for a forged
+  key. The server never echoes its Polar token.
+- The cross-origin return channel never grants on a message payload: the
+  postMessage listener validates `event.origin`, BroadcastChannel is same-origin
+  by construction, and every checkout id from either channel is server-verified
+  before any grant. An injected forged message from the preview origin never
+  reached the server.
+- Deleting the gate-modal DOM does not unlock playback — the transport lock is
+  app state (`sessionGateActive()`), re-checked at both `play()` entry points.
+
+**Accepted, measured leakage (spec §4 — bypass = revenue leakage, not a breach).**
+All client gates are DevTools-bypassable by design; the case study reports a
+bypass rate, not zero. Catalogued paths: console `currentTier='pro'` (dies on
+reload); restoring `sessionSeconds` after 0:00 (fires `gate_bypassed` telemetry
+once); replaying a succeeded $5 extend id to re-grant +10:00 (same as calling
+`grantExtension()` directly); a forged `bl_license` while the attacker blocks
+their own `/api/*` (below); and `validate-license` being org-scoped, not
+product-scoped — any FOIL org key validates (only matters if FOIL issues other
+keys in this Polar org; cheap future hardening: add a product/benefit filter).
+
+**Forged key + self-blocked network — leakage, not a defect (adjudicated).**
+Forging `bl_license` with a fresh timestamp grants Pro locally and persists
+across reloads *only while the attacker keeps their own `/api/validate-license`
+blocked*. Live test: the instant the network is restored, the background
+revalidation gets `{valid:false}` and downgrades to free, clearing the key — so
+it does NOT survive a real revalidation, only a *suppressed* one (self-inflicted,
+self-only, same blast radius as the accepted console tamper). Two audit lenses
+flagged it "fake-pro-survives" by the oracle's literal wording; a third lens and
+the live evidence agree it's accepted leakage. Optional semantic hardening (not
+a blocker): only honor the offline cache when a prior real `valid:true` was
+recorded, so a *never-validated* key isn't honored even offline — doesn't stop a
+DevTools attacker (they forge the marker too), just makes "grace" mean "was
+validated recently, now offline."
+
+**FIXED before merge (2 commits, suite still 120/120, floor OK):**
+- **Broken-purchase (money path) — a paid extension could be silently lost and
+  the recovery re-charged.** On a transient 502 at the verify instant the catch
+  scheduled no retry (only the 'open' branch did), so a $5 extend that succeeded
+  at Polar was lost — and with no license key, manual entry couldn't recover it,
+  so the only recourse ("Add 10 minutes" again) opened a fresh checkout = a
+  second charge. Fix `267e295`: mirror the bounded 'open' retry in the 502 catch;
+  single-grant guards unchanged. Rare trigger, but a silent money-loss path on a
+  real-money launch with a ~3-line fix.
+- **Time-warp trailing-dot bypass (leakage).** `blind-listen.vercel.app.`
+  (trailing dot) defeats the exact-match PROD_HOSTS guard, so `?t` could remove
+  the free timer on production. Fix `6fab68b`: strip trailing dots before the
+  guard. Leakage-only, but the timer is the mechanic the experiment measures.
+  (Exploitability contingent on Vercel serving the dotted Host; guard is correct
+  regardless.)
+
+**One decision owed — [[FOI-714]] (server-side, real but bounded).**
+`checkout-status` returns a buyer's real license key to *any* caller who presents
+that checkout's id — no ownership proof. No in-app path leaks another person's id
+(the success page carries only the caller's own `?checkout_id=`, loads no
+third-party resources, logs nothing), and Polar ids are high-entropy — but the
+buyer's own success URL carries the id, so a shared/screenshotted success URL is
+a bearer token for their key. Keys are non-exclusive by design (victim not locked
+out), so harm collapses to leakage + disclosure of a non-PII key. Options: (a)
+accept + document as a bounded residual; (b) drop `licenseKey` from the response,
+rely on Polar's email + the existing manual "Enter license key" path (closes it;
+small UX cost). Recommendation (b) if the UX hit is acceptable. Ticket carries
+the full analysis; **decision gates merge.**
+
+**Visual-review surface (Watson's eye).** Gate-modal screenshots captured for
+the timer gate (dark + light) and the LUFS feature-gate. Finding: the
+**light-theme accent is `#a07800` (mustard/brown-gold)** — the primary "$19" CTA
+color in light mode — vs. the correct teal `#14b8a6` in dark mode. Given the
+"brown = never use" rule this likely wants a different light-theme accent. (The
+count-up-seed cosmetic note from the E2E entry stands for the same eye.)
+
 ## 2026-07-30 — Experiment designed and specced
 
 Chose degrade-nothing-except-the-clock: free drops 10:00 → 6:00 (raises gate
