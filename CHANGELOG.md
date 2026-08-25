@@ -2,6 +2,13 @@
 
 All notable changes to Blind Listen. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## v1.2.0 — Session passes and a lifetime license
+
+- Free sessions are now 6 minutes — a full blind test on fresh ears.
+- When time's up you can add 10 more minutes ($5), go Pro forever ($19), or close out — closing always shows your reveal and notes first.
+- Pro removes the timer for good and unlocks LUFS metering, lock-in reshuffle, and PDF reports. One payment, no subscription.
+- Text export and unlimited new sessions stay free.
+
 ## [1.1.0] — 2026-05-17
 
 ### Added

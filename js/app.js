@@ -24,7 +24,8 @@ let levelMatchGain = null;
 let mixGainOffsets = [];
 
 // Lock-in reshuffle state
-// PAID_GATE: lock-in reshuffle (ungated for now — all users get this)
+// PAID_GATE: lock-in reshuffle is gated Pro (js/ui.js toggleLock, spec §2) —
+// reshuffleBtn itself stays free.
 let lockedBtnIndex = -1;     // which button index the user locked
 let lockedFileIndex = -1;    // which file index was behind that button
 let firstPickFileIndex = -1; // file index from first round (before reshuffle)

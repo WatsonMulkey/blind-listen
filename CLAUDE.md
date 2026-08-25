@@ -1,6 +1,6 @@
 # Blind Listen — Blind Mix Comparison Tool
 
-## Status: Active — Phase 1 + v1.1.0 live; monetization experiment specced+planned 2026-07-30 and PARKED pre-execution (pickup: `docs/superpowers/specs/2026-07-30-phase-2-desktop-video-parking.md`)
+## Status: Active — Phase 1 + v1.1.0 live; monetization experiment (v1.2.0) BUILT on branch `watson/monetization-experiment` 2026-08-25 — awaiting Polar sandbox E2E, QA sweep, adversarial pass, hallway test, and Watson's visual review before merge to main. Not yet in production. Log: `docs/experiment-log.md`.
 
 ## What This Is
 Browser-based blind listening test for comparing audio mixes. Load 2–5 audio files, switch between them with hidden identities, loop sections, jot notes, then reveal. Features LUFS metering, level matching, spectrogram, lock-in reshuffle, reference track, and text/PDF export. Free tier is 100% client-side (no server, no cost). Paid tier and Session Mode add backend when demand proves out.
@@ -17,6 +17,7 @@ Browser-based blind listening test for comparing audio mixes. Load 2–5 audio f
 - Proxied via rewrite in `foil-industries-v2/vercel.json` → `foil.engineering/blindlisten`
 - Same pattern as TheNumber
 - CRITICAL: Always verify `.vercel/project.json` has correct projectId before deploying
+- `.vercelignore` excludes `docs/` and `.superpowers/` from the public deploy — planning docs and specs never ship.
 
 ## Key Files
 - `index.html` — HTML + CSS + `<script>` tags
@@ -28,6 +29,13 @@ Browser-based blind listening test for comparing audio mixes. Load 2–5 audio f
 - `js/timer.js` — Session countdown timer
 - `js/ui.js` — buildUI, buttons, reveal, reshuffle, notes, keyboard, ref track
 - `js/export.js` — Text + PDF export
+- `js/config.js` — Experiment config: `POLAR_ENV`, checkout links, `API_BASE`, `POSTHOG_KEY`
+- `js/analytics.js` — PostHog wrapper (`track()`), no-op until `POSTHOG_KEY` is set
+- `js/entitlements.js` — Tier model (free/pro), license cache, gate/timer pure helpers
+- `js/gate-modal.js` — Paywall modal (timer + feature triggers), wrap-up bar, dismissal
+- `js/checkout.js` — Checkout open + cross-origin dual-channel verification, license activation
+- `api/` — Vercel serverless functions: `validate-license.mjs`, `checkout-status.mjs`, `_polar.mjs` (shared Polar client — POLAR_ACCESS_TOKEN lives only here)
+- `checkout-success.html` — Polar checkout return page; posts the checkout id back to the opener tab
 - `../docs/decisions/005-blind-listen-architecture.md` — ADR (comprehensive)
 
 ## How to Use (local dev)
@@ -48,11 +56,18 @@ Browser-based blind listening test for comparing audio mixes. Load 2–5 audio f
 - `M` — Toggle level matching
 - `R` — Reveal
 
-## PAID_GATE Locations
-Gate points for future monetization (currently all ungated):
-- `js/metering.js` — LUFS metering
-- `js/ui.js` — Lock-in reshuffle
-- `js/export.js` — PDF export
+## Monetization Gates (live, v1.2.0)
+Free sessions run 6:00 (`FREE_SESSION_SECONDS`, `js/entitlements.js`); at 0:00 the gate modal (`js/gate-modal.js`) offers a $5 / +10:00 extension, $19 lifetime Pro, or close-session (always routes through reveal first — an unfinished blind test is never eaten). Pro removes the timer for good and unlocks:
+- `js/metering.js` — `renderMixStats()` numeric LUFS/peak/RMS display (computation itself stays free)
+- `js/ui.js` `toggleLock()` — lock-in pick + reshuffle consistency check
+- `js/export.js` — PDF export (`exportPdfBtn`); text export stays free at every tier
+
+Entitlement is a Polar license key in `localStorage` (`bl_license`), revalidated server-side with a 7-day offline grace (`js/entitlements.js`, `js/checkout.js`). Gates are client-side and DevTools-bypassable — an accepted trade-off (spec §4); bypass is measured via `gate_bypassed` telemetry, not prevented.
+
+**Vercel env vars** (server-side, `api/`): `POLAR_ACCESS_TOKEN`, `POLAR_ORG_ID`, `POLAR_PRODUCT_EXTEND_ID`, `POLAR_PRODUCT_PRO_ID`, `POLAR_ENV` (`sandbox` | `production`).
+**Client-side config** (`js/config.js`): `POSTHOG_KEY` (empty = analytics disabled) and the two Polar checkout links (`CHECKOUT_LINK_EXTEND`, `CHECKOUT_LINK_PRO`).
+
+**Sandbox → production flip (launch-day, do together in one commit):** swap `js/config.js` (`POLAR_ENV`, both checkout links, `POSTHOG_KEY`) to production values AND the matching Vercel env vars to production Polar credentials — never one without the other, or checkout links and the server verifying them will point at different Polar environments.
 
 ## Linear Tickets
 - FOI-27: Requirements + ADR

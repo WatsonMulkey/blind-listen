@@ -19,6 +19,8 @@
 #   headless environment drops Web Audio, the harness skips that suite as a
 #   whole and the runner reports skipped_markers=1 / webaudio=no — that is a
 #   floor breach by design (105 -> 99), not something to paper over.
+#   2026-08-25: 120 — +15 monetization-experiment tests (ENT-001..004,
+#   GATE-001..009, PRO-001..002); TIM-001 updated for the 6:00 session.
 
 name: blind-listen-ci
 
@@ -32,7 +34,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     env:
-      EXPECTED_MIN: 105
+      EXPECTED_MIN: 120
       # Pin kept in lockstep with the install-hint text in scripts/ci-run-tests.mjs.
       PLAYWRIGHT_VERSION: 1.61.1
     steps:
