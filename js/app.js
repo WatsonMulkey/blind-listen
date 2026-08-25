@@ -117,7 +117,14 @@ const startListenBtn = document.getElementById('startListenBtn');
 const PROD_HOSTS = ['blind-listen.vercel.app', 'foil.engineering', 'blindlisten.foil.engineering'];
 (function applyTimeWarp() {
   const t = new URLSearchParams(location.search).get('t');
-  if (!t || PROD_HOSTS.includes(location.hostname)) return;
+  // Strip any trailing FQDN dot before the exact-match guard: the WHATWG URL
+  // parser preserves it (so 'blind-listen.vercel.app.' != the roster entry),
+  // which would otherwise let ?t be honored on a production origin and remove
+  // the free-session timer there. Leakage-only (never unlocks Pro), but the
+  // timer is the mechanic the experiment measures, so close it. (2026-08-25
+  // adversarial pre-launch audit.)
+  const host = location.hostname.replace(/\.+$/, '');
+  if (!t || PROD_HOSTS.includes(host)) return;
   const secs = parseInt(t, 10);
   if (Number.isFinite(secs) && secs >= 5) sessionSeconds = secs;
 })();
