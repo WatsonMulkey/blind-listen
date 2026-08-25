@@ -90,12 +90,28 @@ gateCloseSessionBtn.addEventListener('click', () => {
 
 wrapUpDoneBtn.addEventListener('click', () => location.reload());
 
-// Re-open the gate from the "Ended" timer badge.
-timerBadge.style.cursor = 'pointer';
-timerBadge.setAttribute('role', 'button');
-timerBadge.setAttribute('tabindex', '0');
-timerBadge.setAttribute('aria-label', 'Session ended — show options');
+// Re-open the gate from the "Ended" timer badge — but the button affordance
+// (role/tabindex/aria-label/cursor) is only real while the badge actually
+// reads "Ended" (sessionGateActive()). The badge also shows mid-session at
+// the "Low" (2-minute-warning) threshold, which is a passive status, not a
+// control — giving it a button role unconditionally made it read as a false
+// button to screen readers. js/timer.js calls this after every state change
+// that can affect the badge (updateTimerDisplay, switchTimerToProMode).
+function updateTimerBadgeAffordance() {
+  if (sessionGateActive()) {
+    timerBadge.style.cursor = 'pointer';
+    timerBadge.setAttribute('role', 'button');
+    timerBadge.setAttribute('tabindex', '0');
+    timerBadge.setAttribute('aria-label', 'Session ended — show options');
+  } else {
+    timerBadge.style.cursor = '';
+    timerBadge.removeAttribute('role');
+    timerBadge.removeAttribute('tabindex');
+    timerBadge.removeAttribute('aria-label');
+  }
+}
 timerBadge.addEventListener('click', () => { if (sessionGateActive()) showGateModal('timer'); });
 timerBadge.addEventListener('keydown', (e) => {
   if ((e.key === 'Enter' || e.key === ' ') && sessionGateActive()) { e.preventDefault(); showGateModal('timer'); }
 });
+updateTimerBadgeAffordance();   // initial state: no session started yet, so no affordance

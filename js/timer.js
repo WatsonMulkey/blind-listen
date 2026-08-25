@@ -12,6 +12,14 @@ function sessionTick() {
     timerEndedOnce = true;   // cleared only by a verified extension grant (bypass telemetry)
     updateTimerDisplay();
     if (isPlaying) pause();
+    // pause()->stop() only tears down the mix source (sourceNode). Ref-track
+    // playback (playRef() in js/ui.js) sets isPlaying=true too but drives a
+    // SEPARATE source (refSourceNode) that pause() never touches — without
+    // this, a playing ref track kept sounding right through the gate.
+    // stopRefSource() is internally guarded (no-op if nothing is playing), so
+    // it's safe to call unconditionally here regardless of which source (or
+    // neither) was active.
+    stopRefSource();
     if (timerEndAction_pure(currentTier) === 'gate') {
       track('timer_end');
       showGateModal('timer');
@@ -29,6 +37,7 @@ function startSessionTimer() {
   track('session_start', { tier: currentTier });
   if (currentTier === 'pro') { switchTimerToProMode(); return; }
   updateTimerDisplay();
+  if (timerInterval) clearInterval(timerInterval);   // defensive: never stack two ticking intervals
   timerInterval = setInterval(sessionTick, 1000);
 }
 
@@ -69,6 +78,7 @@ function switchTimerToProMode() {
   document.getElementById('sessionTimer').setAttribute('aria-label', 'Session time elapsed');
   timerValue.textContent = fmt(proElapsedSeconds);
   timerInterval = setInterval(proTick, 1000);
+  updateTimerBadgeAffordance();   // js/gate-modal.js — Pro means sessionGateActive() is false; strip the button affordance
 }
 
 function showFatigueToast() {
@@ -108,6 +118,7 @@ function updateTimerDisplay() {
       lastAnnouncedThreshold = 'warning';
     }
   }
+  updateTimerBadgeAffordance();   // js/gate-modal.js — button affordance exists only while sessionGateActive()
 }
 
 function announceToScreenReader(message) {

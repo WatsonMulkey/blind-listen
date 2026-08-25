@@ -42,6 +42,23 @@ sandbox + Watson himself, not done in this pass):
 - Full manual QA sweep on the preview deploy, both origins
   (blind-listen.vercel.app and foil.engineering/blindlisten — the second
   exercises CORS) per spec §9.
+- Three named E2E scenarios still owed against a real deploy (the final-review
+  fix wave covered the client-side logic with stubs; these need the real
+  network path):
+  - A foil.engineering-tab **extend** purchase, end to end. This is the
+    single delivery thread that matters for that origin — Controller Ruling E
+    depends on `window.opener` surviving the new-tab checkout, and that can
+    only be proven against a real cross-origin `window.open()` + Polar
+    redirect, not a stub.
+  - Ref-track-playing-at-0:00 regression check (the fix in `js/timer.js`
+    `sessionTick`/`stopRefSource()`) — confirm on a real deploy that a
+    playing reference track actually goes silent at the gate, not just that
+    the assertion passes against the local harness.
+  - The 403 branch on `api/validate-license.mjs` — the status-code mapping
+    (404/400/403/422 → `{valid:false}`) is carried over from the brief and
+    not independently confirmed against Polar's live org-scoped endpoint
+    (see the RISK NOTE in that file); needs a real invalid-key call once
+    sandbox credentials exist.
 - Adversarial half-hour (Watson as hostile user, DevTools, expected outcomes
   written before attacking) — threat-model results go here as their own
   entry.
@@ -52,3 +69,6 @@ sandbox + Watson himself, not done in this pass):
 - Before flipping `POSTHOG_KEY` to a real key at launch: manually eyeball
   the current PostHog snippet at posthog.com/docs before setting it — the
   loader was prefix-verified only, not confirmed against the live snippet.
+- Date the v1.2.0 `CHANGELOG.md` entry at launch — it currently has no date
+  (every other entry does) because the build spanned multiple days; stamp it
+  with the actual ship date when the sandbox→production flip happens.

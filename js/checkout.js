@@ -69,7 +69,13 @@ async function verifyCheckout(checkoutId, attempt = 0) {
       if (attempt < OPEN_RETRY_MAX_ATTEMPTS) {
         setTimeout(() => verifyCheckout(checkoutId, attempt + 1), OPEN_RETRY_DELAY_MS);
       } else {
-        announceToScreenReader('Payment still processing — if it completes, click Add 10 minutes again or use Enter license key.');
+        // "Add 10 minutes again" doesn't apply to a Pro purchase — Pro has no
+        // repeatable button to re-click, so point it at the license-key path.
+        announceToScreenReader(
+          data.product === 'pro'
+            ? 'Payment still processing — if it completes, use Enter license key to activate Pro.'
+            : 'Payment still processing — if it completes, click Add 10 minutes again or use Enter license key.'
+        );
       }
       return;
     }
@@ -90,11 +96,22 @@ async function verifyCheckout(checkoutId, attempt = 0) {
   }
 }
 
-const checkoutChannel = new BroadcastChannel('bl-checkout');
-checkoutChannel.onmessage = (e) => {
-  const checkoutId = e.data && e.data.checkoutId;
-  verifyCheckout(checkoutId);
-};
+// Unguarded, this constructor throws on browsers without BroadcastChannel
+// support and kills the whole script — taking Pro restoration, manual
+// license entry, and the postMessage fallback down with it. Guarded here so
+// the rest of the file works with checkoutChannel simply absent; the
+// postMessage listener below (and checkout-success.html's own try/catch
+// around its BroadcastChannel) still covers grant delivery.
+let checkoutChannel = null;
+try {
+  checkoutChannel = new BroadcastChannel('bl-checkout');
+  checkoutChannel.onmessage = (e) => {
+    const checkoutId = e.data && e.data.checkoutId;
+    verifyCheckout(checkoutId);
+  };
+} catch (e) {
+  console.warn('BroadcastChannel unavailable:', e.message);
+}
 
 // CONTROLLER RULING E: cross-origin fallback for a foil.engineering app tab —
 // checkout-success.html always lands on blind-listen.vercel.app, so this is
@@ -114,7 +131,11 @@ function grantExtension() {
   timerEndedOnce = false;   // verified grant — re-arms the gate AND the bypass telemetry
   hideGateModal();
   updateTimerDisplay();
-  resumeCountdown();
+  // Guarded: a bounded internal retry (verifyCheckout) or a redelivered
+  // BroadcastChannel/postMessage can resolve after the user has hit Restart
+  // (timerStarted reset to false) — resumeCountdown() would otherwise start
+  // a ticking interval for a session that was never (re-)started.
+  if (timerStarted) resumeCountdown();
   announceToScreenReader('10 minutes added to your session.');
 }
 
@@ -157,6 +178,11 @@ async function initEntitlementsOnLoad() {
   if (!stored || !stored.key) return;
   if (licenseCacheValid_pure(stored.validatedAt, Date.now())) {
     currentTier = 'pro';
+    // Keep the timer in sync with the tier flip. Belt-and-suspenders here
+    // (this branch runs synchronously before any session can plausibly have
+    // started) — the real race is the awaited branch below, where the fetch
+    // gives a countdown time to start before currentTier resolves.
+    if (timerStarted) switchTimerToProMode();
     revalidateInBackground(stored.key);
     return;
   }
@@ -168,7 +194,11 @@ async function initEntitlementsOnLoad() {
       body: JSON.stringify({ key: stored.key }),
     });
     const data = r.ok ? await r.json() : null;
-    if (data && data.valid) { storeLicense(stored.key); currentTier = 'pro'; }
+    // This branch is the real-world race: the fetch above takes a round
+    // trip, during which the user can click "Start listening" and have a
+    // countdown running by the time the await resolves and currentTier
+    // flips to pro — so the timer switch has to travel with it here too.
+    if (data && data.valid) { storeLicense(stored.key); currentTier = 'pro'; if (timerStarted) switchTimerToProMode(); }
     else if (data && data.valid === false) clearLicense();   // definitively revoked
     // 502/network: leave stored key, stay free this load (grace already spent)
   } catch (e) { /* stay free this load */ }
