@@ -8,6 +8,45 @@ Template per entry: **Date — What happened / Why / Numbers (if any) / Screensh
 
 ---
 
+## 2026-08-25 (later) — Polar sandbox live; server chain verified end-to-end
+
+Sandbox org **FOIL Engineering** (`0e21426a-bbf9-4fbb-a87d-8c283f9f5e9b`)
+configured in one sitting: both one-time products (Session Extension $5
+`1cb827b5-dab0-4725-ac8e-34cd02b969a0`; Blind Listen Pro (Lifetime) $19
+`4a727ed1-b10f-41dd-a106-8d4c40ad74a7` with a License Keys benefit, prefix
+`BLPRO`, no expiry/activation caps), both checkout links, and a 90-day
+all-scopes org token. All five Vercel env vars set (Production + Preview);
+sandbox checkout links committed to `js/config.js` @ `24e34c7`.
+
+**Live curl battery against the preview deploy (Ruling D deferred
+verification) — all pass:** `checkout-status` 400 on missing id, 502
+`polar unreachable` on bogus id (retryable, by design); `validate-license`
+**200 `{"valid":false}` on a bogus key** — this one proves the whole server
+chain (function → sandbox Polar → org-token auth → invalid-key mapping;
+a broken token would read `502 polar 401`). Method guards 405; CORS
+preflight 204 with correct ACAO + `Vary: Origin` for a rostered origin.
+That also retires the third named E2E scenario (the 404/400/403/422 →
+`{valid:false}` mapping against the live org-scoped endpoint).
+
+**Vercel Authentication disabled for the project** (Watson's call, offered
+with alternatives): previews were SSO-locked, which blocked the E2E, the QA
+sweep, and above all the unbriefed hallway testers. Repo and app are public;
+the Polar token stays server-side regardless. Can be re-enabled any time.
+
+⚠ **TEMPORARY, flip back at merge:** both sandbox checkout links' success
+URL now points at the branch preview alias
+(`blind-listen-git-watson-moneti-2a6dcd-watsons-projects-00a90c38.vercel.app/checkout-success.html?checkout_id={CHECKOUT_ID}`)
+because prod (`main`) doesn't serve `checkout-success.html` yet — a purchase
+would 404. The alias DIES when the branch is deleted post-merge, so at merge
+time, **before** the 3-origin QA sweep, set both success URLs back to
+`https://blind-listen.vercel.app/checkout-success.html?checkout_id={CHECKOUT_ID}`
+(or FOI-713's canonical URL if Stage A ran first — then js/checkout.js's
+`e.origin` check changes in the same breath, see the SDD ledger note).
+
+Remaining before merge: same-origin E2E purchases on the preview (extend +
+Pro incl. license activation), ref-at-0:00 real-deploy check, Watson's
+adversarial half-hour, hallway test, visual review. PostHog key still unset.
+
 ## 2026-07-30 — Experiment designed and specced
 
 Chose degrade-nothing-except-the-clock: free drops 10:00 → 6:00 (raises gate
