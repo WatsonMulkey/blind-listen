@@ -11,7 +11,8 @@ import { applyCors, polarPost } from './_polar.mjs';
 //     authentication and can be safely used on a public client, like a
 //     desktop application or a mobile app. If you plan to validate a license
 //     key on a server, use the /v1/license-keys/validate endpoint instead."
-//     (polar.apidocumentation.com/documentation/features/benefits/license-keys)
+//     (github.com/polarsource/polar-js docs/sdks/polarlicensekeys/README.md —
+//     the CustomerPortal.LicenseKeys SDK doc)
 //   - POST /v1/license-keys/validate — org-scoped, requires the
 //     license_keys:write OAT scope (github.com/polarsource/polar-js
 //     docs/sdks/licensekeys/README.md).
