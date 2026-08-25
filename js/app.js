@@ -49,6 +49,8 @@ let waveformVisible = true;
 let sessionSeconds = FREE_SESSION_SECONDS;
 let timerInterval = null;
 let timerStarted = false;
+let timerEndedOnce = false;
+let bypassReported = false;
 
 // ─── DOM refs ─────────────────────────────────────────────────
 const uploadZone = document.getElementById('uploadZone');
@@ -102,6 +104,17 @@ const exportTxtBtn = document.getElementById('exportTxtBtn');
 const exportPdfBtn = document.getElementById('exportPdfBtn');
 const restartBtn = document.getElementById('restartBtn');
 const startListenBtn = document.getElementById('startListenBtn');
+
+// UX-testing time warp: ?t=15 gives a 15-second free session. Never honored on
+// production hostnames; preview deploys and localhost only. First session only —
+// resetSessionState() returns to FREE_SESSION_SECONDS (acceptable for testing).
+const PROD_HOSTS = ['blind-listen.vercel.app', 'foil.engineering'];
+(function applyTimeWarp() {
+  const t = new URLSearchParams(location.search).get('t');
+  if (!t || PROD_HOSTS.includes(location.hostname)) return;
+  const secs = parseInt(t, 10);
+  if (Number.isFinite(secs) && secs >= 5) sessionSeconds = secs;
+})();
 
 // Start listening — transition from upload to player, begin timer
 startListenBtn.addEventListener('click', () => {
@@ -187,8 +200,11 @@ function resetSessionState() {
 
   // Timer
   if (timerInterval) clearInterval(timerInterval);
+  timerInterval = null;
   timerStarted = false;
   sessionSeconds = FREE_SESSION_SECONDS;
+  timerEndedOnce = false;
+  bypassReported = false;
 }
 
 // Restart session — reset all state (resetSessionState) then return to the upload screen.

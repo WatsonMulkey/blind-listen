@@ -14,6 +14,13 @@ function ensureAudioGraph() {
 }
 
 function play(fromTime = pausedAt) {
+  if (typeof sessionGateActive === 'function' && sessionGateActive()) { showGateModal('timer'); return; }
+  // Tamper telemetry only — playback proceeds (spec §4). Fires once per session.
+  if (typeof bypassDetected_pure === 'function' && !bypassReported &&
+      bypassDetected_pure(timerEndedOnce, sessionSeconds, currentTier)) {
+    bypassReported = true;
+    track('gate_bypassed');
+  }
   if (isPlaying) stop();
   if (activeIndex < 0) {
     activeIndex = 0;

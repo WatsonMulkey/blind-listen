@@ -1496,6 +1496,17 @@
     .onboarding-modal { padding: 1.5rem; width: 95%; }
     .onboarding-modal h2 { font-size: 1.1rem; }
   }
+  .gate-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+  .gate-backdrop[hidden] { display: none; }
+  .gate-panel { position: relative; max-width: 420px; width: calc(100% - 2rem); background: var(--bg-panel, #1a1a1f); border: 1px solid var(--border, #333); border-radius: 12px; padding: 1.5rem; }
+  .gate-x { position: absolute; top: 0.5rem; right: 0.75rem; background: none; border: none; color: var(--text-muted); font-size: 1.4rem; cursor: pointer; }
+  .gate-actions { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1rem; }
+  .gate-btn { padding: 0.7rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.95rem; }
+  .gate-btn-pro { display: flex; flex-direction: column; gap: 0.2rem; }
+  .gate-pro-features { font-size: 0.75rem; color: var(--text-muted); }
+  .gate-btn-close { background: none; border: 1px solid var(--border, #333); color: var(--text-muted); }
+  #wrapUpBar { position: fixed; bottom: 0; left: 0; right: 0; display: flex; gap: 1rem; align-items: center; justify-content: center; padding: 0.8rem; background: var(--bg-panel, #1a1a1f); border-top: 1px solid var(--border, #333); z-index: 900; }
+  #wrapUpBar[hidden] { display: none; }
 </style>
 </head>
 <body>
@@ -1637,6 +1648,26 @@
 </div>
 </main>
 
+<div id="gateModal" class="gate-backdrop" role="dialog" aria-modal="true" aria-labelledby="gateModalTitle" hidden>
+  <div class="gate-panel">
+    <button class="gate-x" id="gateDismissBtn" aria-label="Dismiss">&times;</button>
+    <h2 id="gateModalTitle">Time's up</h2>
+    <p id="gateModalBody">Six minutes of blind listening is a full session &mdash; fresh ears fade fast. Keep going, or wrap up.</p>
+    <div class="gate-actions">
+      <button class="gate-btn gate-btn-extend" id="gateExtendBtn">Add 10 more minutes &mdash; $5</button>
+      <button class="gate-btn gate-btn-pro" id="gateProBtn">
+        Buy lifetime license &mdash; $19
+        <span class="gate-pro-features">No session timer &middot; LUFS metering &middot; Lock-in reshuffle &middot; PDF export</span>
+      </button>
+      <button class="gate-btn gate-btn-close" id="gateCloseSessionBtn">Close session</button>
+    </div>
+  </div>
+</div>
+<div id="wrapUpBar" hidden>
+  <span>Session closed &mdash; results revealed below.</span>
+  <button id="wrapUpDoneBtn">Done &mdash; clear session</button>
+</div>
+
 <div id="srAnnouncer" role="status" aria-live="polite" class="sr-only"></div>
 
 <footer class="privacy-footer">
@@ -1698,6 +1729,7 @@
 <script src="js/timer.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/export.js"></script>
+<script src="js/gate-modal.js"></script>
 <script>
 // Theme toggle — respects OS preference, allows manual override via localStorage
 (function () {

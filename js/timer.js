@@ -2,20 +2,34 @@
 
 let lastAnnouncedThreshold = null;
 
+function sessionTick() {
+  sessionSeconds--;
+  updateTimerDisplay();
+  if (sessionSeconds <= 0) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+    sessionSeconds = 0;
+    timerEndedOnce = true;   // cleared only by a verified extension grant (bypass telemetry)
+    updateTimerDisplay();
+    if (isPlaying) pause();
+    if (timerEndAction_pure(currentTier) === 'gate') {
+      track('timer_end');
+      showGateModal('timer');
+    }
+  }
+}
+
 function startSessionTimer() {
   if (timerStarted) return;
   timerStarted = true;
+  track('session_start', { tier: currentTier });
   updateTimerDisplay();
-  timerInterval = setInterval(() => {
-    sessionSeconds--;
-    updateTimerDisplay();
-    if (sessionSeconds <= 0) {
-      clearInterval(timerInterval);
-      sessionSeconds = 0;
-      updateTimerDisplay();
-      if (isPlaying) pause();
-    }
-  }, 1000);
+  timerInterval = setInterval(sessionTick, 1000);
+}
+
+function resumeCountdown() {
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(sessionTick, 1000);
 }
 
 function updateTimerDisplay() {
@@ -44,6 +58,7 @@ function updateTimerDisplay() {
     timerBadge.classList.add('visible');
     if (lastAnnouncedThreshold !== 'warning') {
       announceToScreenReader('2 minutes remaining in session.');
+      track('timer_warning');
       lastAnnouncedThreshold = 'warning';
     }
   }
