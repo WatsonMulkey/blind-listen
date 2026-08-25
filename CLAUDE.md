@@ -15,6 +15,10 @@ Browser-based blind listening test for comparing audio mixes. Load 2–5 audio f
 - Vercel project: `blind-listen` (auto-deploys from GitHub on push to main)
 - Direct URL: `https://blind-listen.vercel.app`
 - Proxied via rewrite in `foil-industries-v2/vercel.json` → `foil.engineering/blindlisten`
+- Also served at `https://blindlisten.foil.engineering` — a domain alias on the
+  same Vercel project (byte-identical content, verified 2026-08-24); a third
+  origin for CORS/postMessage rosters (`js/app.js` PROD_HOSTS, `api/_polar.mjs`
+  ALLOWED_ORIGINS, `checkout-success.html` postMessage targets)
 - Same pattern as TheNumber
 - CRITICAL: Always verify `.vercel/project.json` has correct projectId before deploying
 - `.vercelignore` excludes `docs/` and `.superpowers/` from the public deploy — planning docs and specs never ship.

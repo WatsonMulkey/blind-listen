@@ -111,7 +111,10 @@ const startListenBtn = document.getElementById('startListenBtn');
 // UX-testing time warp: ?t=15 gives a 15-second free session. Never honored on
 // production hostnames; preview deploys and localhost only. First session only —
 // resetSessionState() returns to FREE_SESSION_SECONDS (acceptable for testing).
-const PROD_HOSTS = ['blind-listen.vercel.app', 'foil.engineering'];
+// blindlisten.foil.engineering is a domain alias on the same Vercel project as
+// blind-listen.vercel.app (byte-identical content, verified 2026-08-24) — a
+// third production origin, so it's refused here too.
+const PROD_HOSTS = ['blind-listen.vercel.app', 'foil.engineering', 'blindlisten.foil.engineering'];
 (function applyTimeWarp() {
   const t = new URLSearchParams(location.search).get('t');
   if (!t || PROD_HOSTS.includes(location.hostname)) return;

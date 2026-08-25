@@ -39,17 +39,23 @@ network-failure responses a bounded retry.
 sandbox + Watson himself, not done in this pass):
 - Production Polar sandbox config (org/products/checkout links/token) + a
   live `curl` smoke test against `checkout-status`/`validate-license`.
-- Full manual QA sweep on the preview deploy, both origins
-  (blind-listen.vercel.app and foil.engineering/blindlisten — the second
-  exercises CORS) per spec §9.
+- Full manual QA sweep on the preview deploy, across all THREE production
+  origins (blind-listen.vercel.app, foil.engineering/blindlisten, and
+  blindlisten.foil.engineering — a domain alias on the same Vercel project,
+  verified 2026-08-24 to serve byte-identical content but still a distinct
+  origin for CORS/postMessage purposes) per spec §9.
 - Three named E2E scenarios still owed against a real deploy (the final-review
   fix wave covered the client-side logic with stubs; these need the real
   network path):
-  - A foil.engineering-tab **extend** purchase, end to end. This is the
-    single delivery thread that matters for that origin — Controller Ruling E
-    depends on `window.opener` surviving the new-tab checkout, and that can
-    only be proven against a real cross-origin `window.open()` + Polar
-    redirect, not a stub.
+  - A cross-origin **extend** purchase, end to end, repeated against EACH of
+    the three production origins (blind-listen.vercel.app,
+    foil.engineering/blindlisten, and blindlisten.foil.engineering). This is
+    the single delivery thread that matters for the two proxied/aliased
+    origins — Controller Ruling E depends on `window.opener` surviving the
+    new-tab checkout, and that can only be proven against a real cross-origin
+    `window.open()` + Polar redirect, not a stub. `blind-listen.vercel.app`
+    itself is same-origin (BroadcastChannel covers it); the other two rely on
+    the postMessage fallback, which now targets all three explicit origins.
   - Ref-track-playing-at-0:00 regression check (the fix in `js/timer.js`
     `sessionTick`/`stopRefSource()`) — confirm on a real deploy that a
     playing reference track actually goes silent at the gate, not just that

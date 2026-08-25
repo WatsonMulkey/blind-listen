@@ -29,7 +29,12 @@ const POLAR_BASE = process.env.POLAR_ENV === 'production'
 // added per-call below (e.g. polarGet('/v1/checkouts/...')), matching the
 // brief's original constant exactly.
 
-export const ALLOWED_ORIGINS = ['https://blind-listen.vercel.app', 'https://foil.engineering'];
+// blindlisten.foil.engineering is a domain alias on the same Vercel project as
+// blind-listen.vercel.app (byte-identical content, verified 2026-08-24) — a
+// third real production origin. Defensive only: subdomain API calls are
+// same-origin via the relative API_BASE in js/config.js and never hit CORS,
+// but the roster should still name every real origin.
+export const ALLOWED_ORIGINS = ['https://blind-listen.vercel.app', 'https://foil.engineering', 'https://blindlisten.foil.engineering'];
 
 export function applyCors(req, res) {
   const origin = req.headers.origin;
