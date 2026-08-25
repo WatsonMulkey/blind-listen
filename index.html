@@ -1498,14 +1498,17 @@
   }
   .gate-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; }
   .gate-backdrop[hidden] { display: none; }
-  .gate-panel { position: relative; max-width: 420px; width: calc(100% - 2rem); background: var(--bg-panel, #1a1a1f); border: 1px solid var(--border, #333); border-radius: 12px; padding: 1.5rem; }
+  .gate-panel { position: relative; max-width: 420px; width: calc(100% - 2rem); background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; box-shadow: var(--shadow-lg); }
   .gate-x { position: absolute; top: 0.5rem; right: 0.75rem; background: none; border: none; color: var(--text-muted); font-size: 1.4rem; cursor: pointer; }
   .gate-actions { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1rem; }
-  .gate-btn { padding: 0.7rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.95rem; }
-  .gate-btn-pro { display: flex; flex-direction: column; gap: 0.2rem; }
-  .gate-pro-features { font-size: 0.75rem; color: var(--text-muted); }
-  .gate-btn-close { background: none; border: 1px solid var(--border, #333); color: var(--text-muted); }
-  #wrapUpBar { position: fixed; bottom: 0; left: 0; right: 0; display: flex; gap: 1rem; align-items: center; justify-content: center; padding: 0.8rem; background: var(--bg-panel, #1a1a1f); border-top: 1px solid var(--border, #333); z-index: 900; }
+  .gate-btn { padding: 0.7rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-family: var(--font-body); transition: all 0.18s ease; }
+  .gate-btn-extend { background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-primary); font-weight: 500; box-shadow: var(--shadow-sm); }
+  .gate-btn-extend:hover { border-color: var(--accent); box-shadow: var(--shadow-md); }
+  .gate-btn-pro { display: flex; flex-direction: column; gap: 0.2rem; background: var(--accent); border: 1px solid var(--accent); color: #fff; font-weight: 600; box-shadow: var(--shadow-md), 0 0 16px var(--accent-glow); }
+  .gate-btn-pro:hover { background: var(--accent-dim); box-shadow: var(--shadow-lg), 0 0 24px var(--accent-glow); }
+  .gate-pro-features { font-size: 0.75rem; color: rgba(255,255,255,0.85); }
+  .gate-btn-close { background: none; border: 1px solid var(--border); color: var(--text-muted); }
+  #wrapUpBar { position: fixed; bottom: 0; left: 0; right: 0; display: flex; gap: 1rem; align-items: center; justify-content: center; padding: 0.8rem; background: var(--bg-surface); border-top: 1px solid var(--border); z-index: 900; }
   #wrapUpBar[hidden] { display: none; }
 </style>
 </head>
