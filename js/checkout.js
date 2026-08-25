@@ -88,9 +88,27 @@ async function verifyCheckout(checkoutId, attempt = 0) {
       else promptLicenseEntry('Payment confirmed — paste the license key from your email to activate Pro.');
     }
   } catch (err) {
-    // 502 / network failure: do NOT poison — leave the id retryable.
+    // 502 / network failure: do NOT poison — leave the id retryable, and, like
+    // the 'open' branch above, schedule a bounded auto-retry.
+    //
+    // FIX (2026-08-25, adversarial pre-launch audit): the original catch only
+    // announced and scheduled NO retry (only 'open' retried). So a checkout that
+    // SUCCEEDED at Polar but whose verify happened to land during a transient
+    // Polar/network blip was silently lost: grantExtension never ran, the gate
+    // stayed up, and — because an extend carries no license key — the manual
+    // "Enter license key" path couldn't recover it either. The only visible
+    // recourse, clicking "Add 10 minutes" again, opens a FRESH Polar checkout =
+    // a second $5 charge (money-in / nothing-out, then a re-charge). A bounded
+    // retry lets a transient failure self-heal before the buyer sees anything.
+    // Still safe against double-grant: a 502/throw never adds the id to
+    // processedCheckoutIds, and the processed/in-flight guards at the top of
+    // verifyCheckout collapse any concurrent or post-grant re-entry to one grant.
     console.warn('checkout verification failed:', err.message);
-    announceToScreenReader('Purchase verification failed — if you paid, use Enter license key or add minutes again.');
+    if (attempt < OPEN_RETRY_MAX_ATTEMPTS) {
+      setTimeout(() => verifyCheckout(checkoutId, attempt + 1), OPEN_RETRY_DELAY_MS);
+    } else {
+      announceToScreenReader('Purchase verification failed — if you paid, use Enter license key or add minutes again.');
+    }
   } finally {
     inFlightCheckoutIds.delete(checkoutId);
   }
