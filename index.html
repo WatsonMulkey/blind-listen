@@ -1322,6 +1322,17 @@
   }
   .footer-links a:hover { color: var(--accent); }
   .footer-links .sep { color: var(--border); }
+  .footer-links .link-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    color: var(--text-muted);
+    text-decoration: none;
+    cursor: pointer;
+    transition: color var(--transition-fast);
+  }
+  .footer-links .link-btn:hover { color: var(--accent); }
 
   /* Help button */
   .help-btn {
@@ -1690,6 +1701,8 @@
   <a href="https://foil.engineering" target="_blank" rel="noopener">FOIL Engineering</a>
   <span class="sep">&middot;</span>
   <a href="https://ko-fi.com/foilengineering" target="_blank" rel="noopener">Support this project</a>
+  <span class="sep">&middot;</span>
+  <button id="licenseEntryLink" class="link-btn">Enter license key</button>
 </div>
 
 <div class="onboarding-overlay" id="onboardingOverlay" hidden role="dialog" aria-labelledby="onboardingTitle" aria-modal="true">
@@ -1735,6 +1748,7 @@
 <script src="js/ui.js"></script>
 <script src="js/export.js"></script>
 <script src="js/gate-modal.js"></script>
+<script src="js/checkout.js"></script>
 <script>
 // Theme toggle — respects OS preference, allows manual override via localStorage
 (function () {

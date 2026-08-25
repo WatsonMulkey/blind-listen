@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Blind Listen — Payment received</title>
+<style>body{font-family:system-ui;background:#111;color:#eee;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}div{text-align:center}</style>
+</head>
+<body>
+<div>
+  <h1>Payment received</h1>
+  <p id="msg">Return to your Blind Listen tab — your purchase is being applied.</p>
+</div>
+<script>
+  // CONTROLLER RULING E (2026-08-24): this page is deployed only at
+  // blind-listen.vercel.app, but the app tab that opened checkout may be
+  // either blind-listen.vercel.app OR foil.engineering/blindlisten (a
+  // Vercel-rewrite proxy — a different origin). BroadcastChannel only
+  // reaches a same-origin tab, so it covers the blind-listen.vercel.app
+  // case; window.opener.postMessage() is the fallback that also reaches a
+  // foil.engineering tab (openCheckout() in js/checkout.js deliberately
+  // opens this page WITHOUT 'noopener' so window.opener survives here).
+  // Post via BOTH channels, and post twice on the postMessage path — once
+  // per explicit target origin, since a single postMessage call only
+  // accepts one targetOrigin.
+  const id = new URLSearchParams(location.search).get('checkout_id');
+  const msgEl = document.getElementById('msg');
+
+  if (id) {
+    try {
+      new BroadcastChannel('bl-checkout').postMessage({ checkoutId: id });
+    } catch (e) { /* BroadcastChannel unsupported — postMessage below still covers the opener case */ }
+
+    if (window.opener) {
+      ['https://blind-listen.vercel.app', 'https://foil.engineering'].forEach((origin) => {
+        try {
+          window.opener.postMessage({ checkoutId: id }, origin);
+        } catch (e) { /* opener access blocked (e.g. COOP) — BroadcastChannel above still covers the same-origin case */ }
+      });
+    } else {
+      // No opener (e.g. the link was opened in a new window manually, or the
+      // original tab was closed) — BroadcastChannel above is still this
+      // page's best shot if a same-origin app tab is open elsewhere, but
+      // there is nothing more this page itself can do, so tell the user.
+      msgEl.textContent = 'Your purchase is being applied. Return to your Blind Listen tab — if it doesn’t update in a few seconds, use "Enter license key" there (the key is also in your email).';
+    }
+  } else {
+    msgEl.textContent = 'Missing checkout reference — if you paid for Pro, use "Enter license key" in the app (the key is also in your email).';
+  }
+</script>
+</body>
+</html>

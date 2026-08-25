@@ -205,6 +205,9 @@ function resetSessionState() {
   sessionSeconds = FREE_SESSION_SECONDS;
   timerEndedOnce = false;
   bypassReported = false;
+
+  // Monetization experiment: currentTier deliberately NOT reset (Pro survives restart);
+  // extension minutes live in sessionSeconds and die with the session by design.
 }
 
 // Restart session — reset all state (resetSessionState) then return to the upload screen.
