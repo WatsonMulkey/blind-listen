@@ -47,6 +47,48 @@ Remaining before merge: same-origin E2E purchases on the preview (extend +
 Pro incl. license activation), ref-at-0:00 real-deploy check, Watson's
 adversarial half-hour, hallway test, visual review. PostHog key still unset.
 
+## 2026-08-25 (later still) — Same-origin sandbox E2E: ALL PASS
+
+Run live on the preview deploy, Watson making the sandbox payments
+(Stripe test card), Claude driving the app via browser automation.
+
+- **Ref-at-0:00 (named scenario 2): PASS.** Reference track loaded and
+  actively playing (`refSourceNode` live, AudioContext running) when the
+  warped session hit 0:00 — the gate modal appeared AND `refSourceNode`
+  went null with `isPlaying: false`. The `stopRefSource()` fix holds on
+  the real deploy; the tone audibly cut at the gate.
+- **Extend purchase, full live chain (scenario 1, same-origin leg): PASS.**
+  Gate CTA → checkout-link redirect → sandbox payment → success page with
+  `checkout_id` → BroadcastChannel to the app tab → server-side
+  `checkout-status` verification → **+10:00 granted, gate closed, no manual
+  step**. (Cross-origin legs — foil.engineering proxy + subdomain alias —
+  are post-merge by design; the preview can't be proxied.)
+- **Pro purchase, full live chain: PASS.** Feature-trigger modal (locked
+  LUFS pill → Pro-only copy, no $5 option, per spec §3) → $19 payment →
+  license key **auto-delivered** into `bl_license` (`BLPRO-…`) — which
+  confirms the `/v1/license-keys?customer_id=` filter the build flagged
+  UNCONFIRMED works live — tier flipped to `pro`, LUFS/stats unlocked,
+  timer flipped to count-up at the grant.
+- **Reload persistence: PASS.** Cold reload → still Pro; the stored key
+  revalidated server-side on load (fresh `lastValidated`), i.e. the live
+  `validate-license` `valid:true` path with a real key.
+- Cosmetic finding, not a defect: `switchTimerToProMode()` seeds elapsed as
+  `FREE_SESSION_SECONDS − sessionSeconds`, so after an extension (or time
+  warp) the count-up can start near 0:00 rather than true elapsed. Invisible
+  in an unwarped, unextended session; worth an eye at visual review.
+- Test-hygiene notes: purchases used Polar sandbox test payments (no real
+  money); the popup blocker eats `window.open` from synthetic clicks, so
+  checkout CTAs were real clicks. Watson's Chrome now holds a Pro license
+  in `localStorage` for the preview origin — **use incognito or clear
+  `bl_license` to re-test free-tier flows on this machine.**
+
+Still owed before merge: Watson's adversarial half-hour · hallway test
+(`?t=60` — previews now shareable, SSO off) · Watson's visual review
+(gate-modal screenshots captured as starting artifacts) · PostHog key.
+At merge: flip both checkout-link success URLs back to
+blind-listen.vercel.app (see the ⚠ above) · 3-origin QA · real purchase +
+refund · production Polar flip.
+
 ## 2026-07-30 — Experiment designed and specced
 
 Chose degrade-nothing-except-the-clock: free drops 10:00 → 6:00 (raises gate
