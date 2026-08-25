@@ -6,10 +6,10 @@
 Browser-based blind listening test for comparing audio mixes. Load 2–5 audio files, switch between them with hidden identities, loop sections, jot notes, then reveal. Features LUFS metering, level matching, spectrogram, lock-in reshuffle, reference track, and text/PDF export. Free tier is 100% client-side (no server, no cost). Paid tier and Session Mode add backend when demand proves out.
 
 ## Stack
-- **Phase 1 (current)**: HTML + CSS + vanilla JavaScript + Web Audio API (split into `js/` modules)
-- **Phase 2 (future)**: + Supabase Auth + Polar.sh payments + Vercel serverless functions
+- **Phase 1 (current)**: HTML + CSS + vanilla JavaScript + Web Audio API (split into `js/` modules) + Polar.sh payments + zero-dependency Vercel serverless functions (`api/`) + PostHog-optional analytics (`js/analytics.js`, no-op until `POSTHOG_KEY` is set)
 - **Phase 3 (future)**: + Cloudflare R2 (file sharing) + Supabase Realtime (session sync)
 - No build step. No framework. Only CDN dependency: jsPDF for PDF export.
+- Auth deliberately absent — ADR-037 (accounts deleted, not deferred; entitlement is a Polar license key, not a user account).
 
 ## Deployment
 - Vercel project: `blind-listen` (auto-deploys from GitHub on push to main)
@@ -73,7 +73,7 @@ Entitlement is a Polar license key in `localStorage` (`bl_license`), revalidated
 - FOI-27: Requirements + ADR
 - FOI-28: Phase 1A — Deploy MVP to Vercel + foil.engineering rewrite
 - FOI-29: Phase 1B — Enhanced free tier (looping, waveform, upload UX)
-- FOI-30: Phase 2 — Paid tier (Supabase Auth, Polar.sh, LUFS metering)
+- FOI-30: Phase 2 — re-scoped to the monetization experiment (v1.2.0, no accounts — see ADR-037): Polar.sh session extension + lifetime Pro, gating LUFS metering/lock-in reshuffle/PDF export
 - FOI-31: Phase 3 — Session Mode (R2, Realtime, voting)
 
 ## Phase Gates

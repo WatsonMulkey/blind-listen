@@ -26,12 +26,14 @@ functions + client-side checkout with cross-origin dual-channel delivery
 (BroadcastChannel same-origin, postMessage fallback for the
 foil.engineering-proxied tab), and the Pro count-up timer replacing the free
 countdown. Review caught two real defects and fixed both: a light-theme
-`--bg-panel` token bug (gate modal/wrap-up bar picked up the wrong panel
-color in light mode) and a checkout-verification bug where a `processing`
-or momentarily-unreachable first response permanently poisoned a
-`checkoutId`, silently eating a $5 grant with no recovery path — fixed by
-only treating terminal outcomes (`succeeded`/`expired`) as permanent and
-giving non-terminal/network-failure responses a bounded retry.
+token bug (the gate modal/wrap-up bar referenced a placeholder `--bg-panel`
+variable instead of the site's real `--bg-surface` token, so they picked up
+the wrong panel color in light mode — fixed in `44a65d7`) and a
+checkout-verification bug where a `processing` or momentarily-unreachable
+first response permanently poisoned a `checkoutId`, silently eating a $5
+grant with no recovery path — fixed in `79c9e9b` by only treating terminal
+outcomes (`succeeded`/`expired`) as permanent and giving non-terminal/
+network-failure responses a bounded retry.
 
 **Pending pre-launch** (deferred — need a preview deploy + Watson's Polar
 sandbox + Watson himself, not done in this pass):
