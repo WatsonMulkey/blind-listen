@@ -46,7 +46,7 @@ let loopEnabled = false;
 let loopStart = 0;
 let loopEnd = 0;
 let waveformVisible = true;
-let sessionSeconds = 600;
+let sessionSeconds = 360;
 let timerInterval = null;
 let timerStarted = false;
 
@@ -188,7 +188,7 @@ function resetSessionState() {
   // Timer
   if (timerInterval) clearInterval(timerInterval);
   timerStarted = false;
-  sessionSeconds = 600;
+  sessionSeconds = 360;
 }
 
 // Restart session — reset all state (resetSessionState) then return to the upload screen.

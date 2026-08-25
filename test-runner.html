@@ -1309,8 +1309,8 @@ async function runAllTests() {
   // ─── Suite: Session timer display logic ───────────────────
   suite('SESSION TIMER — updateTimerDisplay() state logic');
 
-  await test('TIM-001', 'fmt(600) = "10:00" (initial state)', () => {
-    assert(fmt(600) === '10:00', `Expected "10:00", got "${fmt(600)}"`);
+  await test('TIM-001', 'fmt(360) = "6:00" (initial state)', () => {
+    assert(fmt(360) === '6:00', `Expected "6:00", got "${fmt(360)}"`);
   });
 
   await test('TIM-002', 'fmt(120) = "2:00" (warning boundary)', () => {
