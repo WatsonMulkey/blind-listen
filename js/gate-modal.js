@@ -100,6 +100,5 @@ timerBadge.addEventListener('keydown', (e) => {
   if ((e.key === 'Enter' || e.key === ' ') && sessionGateActive()) { e.preventDefault(); showGateModal('timer'); }
 });
 
-// TEMP until Task 4/7 land — replaced there, remove then.
-if (typeof performReveal === 'undefined') { window.performReveal = () => revealBtn.click(); }
+// TEMP until Task 4/7 land — replaced there, remove then.
 if (typeof openCheckout === 'undefined') { window.openCheckout = (p) => console.warn('checkout not wired yet:', p); }

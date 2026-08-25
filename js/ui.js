@@ -327,9 +327,8 @@ volumeBar.addEventListener('input', () => {
 
 // ─── Reveal ──────────────────────────────────────────────────
 
-revealBtn.addEventListener('click', () => {
+function performReveal() {
   if (revealed) return;
-  if (!confirm('Reveal file names? This ends the blind test and cannot be undone.')) return;
   revealed = true;
   revealBtn.textContent = 'Revealed!';
   revealBtn.disabled = true;
@@ -342,13 +341,10 @@ revealBtn.addEventListener('click', () => {
     btn.style.whiteSpace = 'pre-line';
   });
 
-  // Disable lock buttons
   mixButtons.querySelectorAll('.fav-btn').forEach(btn => { btn.disabled = true; });
 
-  // Show export buttons after reveal
   showExportButtons();
 
-  // Show consistency result only after reshuffle + second reveal
   if (hasReshuffled && firstPickFileIndex >= 0 && activeIndex >= 0) {
     const currentFileIndex = shuffleMap[activeIndex];
     const same = currentFileIndex === firstPickFileIndex;
@@ -358,6 +354,12 @@ revealBtn.addEventListener('click', () => {
     consistencyResult.classList.remove('match', 'differ');
     consistencyResult.classList.add('visible', same ? 'match' : 'differ');
   }
+}
+
+revealBtn.addEventListener('click', () => {
+  if (revealed) return;
+  if (!confirm('Reveal file names? This ends the blind test and cannot be undone.')) return;
+  performReveal();
 });
 
 // ─── Reshuffle ───────────────────────────────────────────────
