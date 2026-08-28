@@ -1,6 +1,6 @@
 # Blind Listen — Blind Mix Comparison Tool
 
-## Status: Active — Phase 1 + v1.1.0 live; monetization experiment (v1.2.0) BUILT + sandbox-verified + adversarially audited on branch `watson/monetization-experiment` @ `fd02ed3` 2026-08-25 — core sound, 2 pre-launch fixes landed. Remaining Watson gates before merge: FOI-714 decision (checkout-status key disclosure), FOI-715 (light-theme brown accent), hallway test, visual review, PostHog key; then merge-day sequence. Not yet in production. Threat model + log: `docs/experiment-log.md`.
+## Status: Active — Phase 1 + v1.1.0 live; monetization experiment (v1.2.0) BUILT + sandbox-verified + adversarially audited on branch `watson/monetization-experiment` @ `ffee05e` — core sound, 2 pre-launch fixes landed, Ko-fi removed 2026-08-28 (free tier now has no tip jar). Remaining Watson gates before merge: FOI-714 decision (checkout-status key disclosure), FOI-715 (light-theme brown accent), hallway test, visual review, PostHog key; then merge-day sequence. Not yet in production. Threat model + log: `docs/experiment-log.md`.
 
 ## What This Is
 Browser-based blind listening test for comparing audio mixes. Load 2–5 audio files, switch between them with hidden identities, loop sections, jot notes, then reveal. Features LUFS metering, level matching, spectrogram, lock-in reshuffle, reference track, and text/PDF export. Free tier is 100% client-side (no server, no cost). Paid tier and Session Mode add backend when demand proves out.
