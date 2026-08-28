@@ -99,8 +99,7 @@ This is a self-contained app; "integrations" are thin and all outbound:
 1. **jsPDF (CDN, runtime dependency).** `https://cdnjs.cloudflare.com/.../jspdf/2.5.1/jspdf.umd.min.js` (`index.html:1683`). Contract: exposes `window.jspdf.jsPDF`. PDF export degrades gracefully if it fails to load (`js/export.js:106-109`). Pinned to 2.5.1 because 2.5.2 was never published to cdnjs (commit `07fa034`).
 2. **Vercel Analytics + Speed Insights.** Deferred scripts from `/_vercel/...` (`index.html:1733-1734`) — only resolve when served from Vercel; no-ops on `file://`.
 3. **Ableton "Web Launcher" (v1.1.0).** A footer link to `https://weblauncher.foil.engineering` (`index.html:1647`). **The integration boundary is purely a URL.** The Max-for-Live device (the binary `downloads/!! Web Launcher.amxd`, untracked/gitignored) opens this site in a floating window; this repo contains no code that detects, talks to, or is aware of Ableton. The `.amxd` is a shipped artifact stored here, not source.
-4. **Ko-fi.** Outbound support links (`index.html:1623`, `:1656`).
-5. **Google Fonts.** Outfit / DM Sans / JetBrains Mono via preconnect + stylesheet (`index.html:8-10`).
+4. **Google Fonts.** Outfit / DM Sans / JetBrains Mono via preconnect + stylesheet (`index.html:8-10`).
 
 There is **no auth, no payment, no API, no third-party SDK** beyond the above. The Supabase/Polar.sh/R2/Realtime stack named in `CLAUDE.md:10-11` is **Phase 2/3 aspiration with zero code present**.
 
